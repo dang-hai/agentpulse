@@ -5,7 +5,13 @@
  * Handles request/response correlation and incoming proxy requests.
  */
 
-import type { ProcedureName, Procedures, Request, RequestHandler, Transport } from '../core/protocol.js';
+import type {
+  ProcedureName,
+  Procedures,
+  Request,
+  RequestHandler,
+  Transport,
+} from '../core/protocol.js';
 import { getRegistry } from '../core/registry.js';
 
 export interface WebSocketTransportOptions {
