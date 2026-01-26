@@ -6,6 +6,7 @@ This file provides guidance to AI coding agents when working with code in this r
 
 - **Comments**: Use sparingly. Code should be self-documenting; only add comments for non-obvious logic.
 - **Testing**: Follow TDD - write failing contract tests first and commit before implementation.
+- **Types**: Follow patterns in [docs/type-design-proposal.md](docs/type-design-proposal.md) - discriminated unions for results, centralized parsing at trust boundaries, explicit failure handling.
 
 ## Build and Development Commands
 
