@@ -25,7 +25,7 @@ function parseArgs(args: string[]): { host: string; port: number } {
       const value = args[++i];
       if (value) {
         port = parseInt(value, 10);
-        if (isNaN(port)) {
+        if (Number.isNaN(port)) {
           console.error(`Invalid port: ${value}`);
           process.exit(1);
         }

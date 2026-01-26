@@ -4,6 +4,7 @@
  * Connects renderer to main process via Electron IPC.
  */
 
+import { isRequest } from '../core/parse.js';
 import type {
   ProcedureName,
   Procedures,
@@ -78,7 +79,11 @@ export class IPCTransport implements Transport {
     if (this.connected) return;
 
     this.unsubscribe = this.bridge.on('request', (data) => {
-      this.handleIncomingRequest(data as Request);
+      if (isRequest(data)) {
+        this.handleIncomingRequest(data);
+      } else {
+        console.error('[AgentPulse] Invalid request received via IPC:', data);
+      }
     });
 
     this.bridge.send('connect', {});
@@ -128,11 +133,16 @@ export class IPCTransport implements Transport {
   }
 
   private async handleIncomingRequest(req: Request): Promise<void> {
-    let result: unknown;
-    let error: string | undefined;
+    const registry = getRegistry();
+
+    const sendResponse = (
+      response: { id: string; result: unknown } | { id: string; error: string }
+    ) => {
+      this.bridge.send('response', response);
+    };
 
     try {
-      const registry = getRegistry();
+      let result: unknown;
 
       switch (req.method) {
         case 'list':
@@ -157,12 +167,13 @@ export class IPCTransport implements Transport {
           break;
         }
         default:
-          error = `Unknown method: ${req.method}`;
+          sendResponse({ id: req.id, error: `Unknown method: ${req.method}` });
+          return;
       }
-    } catch (e) {
-      error = String(e);
-    }
 
-    this.bridge.send('response', { id: req.id, result, error });
+      sendResponse({ id: req.id, result });
+    } catch (e) {
+      sendResponse({ id: req.id, error: String(e) });
+    }
   }
 }

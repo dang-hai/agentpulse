@@ -25,9 +25,10 @@ export {
 } from './expose.js';
 
 export {
+  createInteractContext,
+  type InteractContext,
   type InteractInput,
-  injectLog,
   interact,
   interactSchema,
-  setScreenshotCapture,
+  setDefaultScreenshotCapture,
 } from './interact.js';

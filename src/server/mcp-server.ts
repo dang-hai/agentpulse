@@ -10,7 +10,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { z } from 'zod';
-import type { ProcedureName, Procedures, Request, Response } from '../core/index.js';
+import type { ProcedureName, Procedures, Request } from '../core/index.js';
+import { parseMessage } from '../core/index.js';
 
 export interface AgentPulseServerOptions {
   /** Host to bind to (default: 'localhost') */
@@ -286,41 +287,49 @@ export class AgentPulseServer {
    * Handle incoming WebSocket message from browser
    */
   private handleBrowserMessage(ws: WebSocket, data: string): void {
-    try {
-      const message = JSON.parse(data);
+    const parsed = parseMessage(data);
 
-      // Check if this is a response to a pending request
-      const pendingRequest = 'id' in message ? this.pending.get(message.id) : undefined;
-      if (pendingRequest) {
-        const { resolve, reject } = pendingRequest;
-        this.pending.delete(message.id);
+    switch (parsed.type) {
+      case 'response': {
+        const response = parsed.response;
+        const pendingRequest = this.pending.get(response.id);
+        if (pendingRequest) {
+          const { resolve, reject } = pendingRequest;
+          this.pending.delete(response.id);
 
-        if (message.error) {
-          reject(new Error(message.error));
-        } else {
-          resolve(message.result);
+          if (response.error) {
+            reject(new Error(response.error));
+          } else {
+            resolve(response.result);
+          }
         }
-        return;
+        break;
       }
 
-      // Handle registration messages from browser
-      if ('method' in message) {
+      case 'request': {
+        const request = parsed.request;
         const connection = this.connections.get(ws);
         if (!connection) return;
 
-        if (message.method === 'register') {
-          const { id, keys, description, tags } = message.params;
-          connection.components.set(id, { keys, description, tags });
-          // Send ack
-          ws.send(JSON.stringify({ id: message.id, result: { success: true } }));
-        } else if (message.method === 'unregister') {
-          const { id } = message.params;
-          connection.components.delete(id);
-          ws.send(JSON.stringify({ id: message.id, result: { success: true } }));
+        if (request.method === 'register') {
+          const params = request.params as Procedures['register']['input'];
+          connection.components.set(params.id, {
+            keys: params.keys,
+            description: params.description,
+            tags: params.tags,
+          });
+          ws.send(JSON.stringify({ id: request.id, result: { success: true } }));
+        } else if (request.method === 'unregister') {
+          const params = request.params as Procedures['unregister']['input'];
+          connection.components.delete(params.id);
+          ws.send(JSON.stringify({ id: request.id, result: { success: true } }));
         }
+        break;
       }
-    } catch (error) {
-      console.error('[AgentPulse] Failed to parse browser message:', error);
+
+      case 'invalid':
+        console.error('[AgentPulse] Invalid browser message:', parsed.reason, parsed.raw);
+        break;
     }
   }
 

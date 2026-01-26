@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ExposeRegistry, getRegistry, resetRegistry } from './registry.js';
+import { getRegistry, resetRegistry } from './registry.js';
 
 describe('ExposeRegistry', () => {
   beforeEach(() => {
@@ -61,8 +61,9 @@ describe('ExposeRegistry', () => {
       const result = registry.get('nonexistent', 'key');
 
       expect(result.success).toBe(false);
-      expect(result).toHaveProperty('error');
-      expect((result as { error: string }).error).toContain('not found');
+      if (!result.success) {
+        expect(result.error).toContain('not found');
+      }
     });
 
     it('set works with accessor pattern', () => {
@@ -101,7 +102,7 @@ describe('ExposeRegistry', () => {
       });
 
       const result = await registry.call('comp', 'add', [2, 3]);
-      expect(result).toEqual({ success: true, result: 5 });
+      expect(result).toEqual({ success: true, value: 5 });
     });
   });
 });

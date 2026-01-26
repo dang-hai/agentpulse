@@ -5,6 +5,26 @@
  */
 
 /**
+ * Discriminated union for operation results.
+ * Makes invalid states unrepresentable - success always has value, failure always has error.
+ */
+export type Result<T> = { success: true; value: T } | { success: false; error: string };
+
+/**
+ * Type guard for successful results
+ */
+export function isSuccess<T>(result: Result<T>): result is { success: true; value: T } {
+  return result.success;
+}
+
+/**
+ * Type guard for failed results
+ */
+export function isFailure<T>(result: Result<T>): result is { success: false; error: string } {
+  return !result.success;
+}
+
+/**
  * A binding can be:
  * - A primitive value (read-only state)
  * - A function (callable action)
@@ -28,6 +48,8 @@ export interface ExposeOptions {
   description?: string;
   /** Tags for filtering (e.g., ['input', 'form', 'critical-path']) */
   tags?: string[];
+  /** Called when registration with the transport fails (component still works locally) */
+  onRegistrationError?: (error: Error) => void;
 }
 
 /**
@@ -60,24 +82,12 @@ export interface DiscoverInfo extends ExposeInfo {
 }
 
 /**
- * Result types for registry operations
+ * Result types for registry operations.
+ * All use discriminated unions - success requires value, failure requires error.
  */
-export interface GetResult {
-  success: boolean;
-  value?: unknown;
-  error?: string;
-}
-
-export interface SetResult {
-  success: boolean;
-  error?: string;
-}
-
-export interface CallResult {
-  success: boolean;
-  result?: unknown;
-  error?: string;
-}
+export type GetResult = Result<unknown>;
+export type SetResult = Result<void>;
+export type CallResult = Result<unknown>;
 
 /**
  * Action types for the interact tool
@@ -102,11 +112,19 @@ export interface InteractOptions {
 }
 
 /**
- * Result from the interact tool
+ * Result from the interact tool.
+ *
+ * Note: Unlike GetResult/SetResult/CallResult, this is NOT a discriminated union because:
+ * - `success` means "all actions succeeded", not "operation completed"
+ * - `results` is always present (empty array on fatal error)
+ * - `error` is only set for fatal errors (component not found), not for action failures
+ *
+ * To check for failures: if (!result.success) { check result.error or iterate result.results }
  */
 export interface InteractResult {
   success: boolean;
   results: Array<SetResult | CallResult>;
+  error?: string;
   screenshot?: {
     data: string;
     mimeType: string;
@@ -115,7 +133,6 @@ export interface InteractResult {
   };
   logs?: LogEntry[];
   finalState?: Record<string, unknown>;
-  error?: string;
 }
 
 /**

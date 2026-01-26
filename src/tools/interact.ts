@@ -66,33 +66,52 @@ export const interactSchema = z.object({
 
 export type InteractInput = z.infer<typeof interactSchema>;
 
-// Pluggable screenshot and log functions
-let screenshotCapture: ScreenshotCapture | null = null;
-let logBuffer: LogEntry[] = [];
-let logCapturing = false;
-
 /**
- * Configure the screenshot capture function.
- * Call this during app initialization.
+ * Context for interact execution.
+ * Each interact() call gets its own context, making it safe for concurrent use.
  */
-export function setScreenshotCapture(capture: ScreenshotCapture): void {
-  screenshotCapture = capture;
+export interface InteractContext {
+  /** Function to capture screenshots (optional) */
+  captureScreenshot?: ScreenshotCapture;
+  /** Function to inject logs into the current context */
+  injectLog: (entry: Omit<LogEntry, 'id' | 'timestamp'>) => void;
 }
 
 /**
- * Inject a log entry (for log collection during interact)
+ * Create an interact context for a single execution.
+ * The returned context is isolated - logs and state don't leak between calls.
  */
-export function injectLog(entry: Omit<LogEntry, 'id' | 'timestamp'>): void {
-  if (logCapturing) {
-    logBuffer.push({
-      id: crypto.randomUUID(),
-      timestamp: Date.now(),
-      level: entry.level,
-      source: entry.source,
-      message: entry.message,
-      meta: entry.meta,
-    });
-  }
+export function createInteractContext(options?: {
+  captureScreenshot?: ScreenshotCapture;
+}): InteractContext & { getLogs: () => LogEntry[] } {
+  const logs: LogEntry[] = [];
+
+  return {
+    captureScreenshot: options?.captureScreenshot,
+    injectLog: (entry) => {
+      logs.push({
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        level: entry.level,
+        source: entry.source,
+        message: entry.message,
+        meta: entry.meta,
+      });
+    },
+    getLogs: () => logs,
+  };
+}
+
+// Default context for backward compatibility
+// Apps can call setDefaultScreenshotCapture() to configure screenshot support
+let defaultScreenshotCapture: ScreenshotCapture | undefined;
+
+/**
+ * Configure the default screenshot capture function.
+ * This is used when interact() is called without an explicit context.
+ */
+export function setDefaultScreenshotCapture(capture: ScreenshotCapture | undefined): void {
+  defaultScreenshotCapture = capture;
 }
 
 /**
@@ -121,10 +140,20 @@ async function waitForCondition(
 
 /**
  * Execute multiple actions on a component with automatic observation.
+ *
+ * @param params - The interact parameters (target, actions, observe options)
+ * @param context - Optional context for screenshots and logging (creates isolated context if not provided)
  */
-export async function interact(params: InteractInput): Promise<InteractResult> {
+export async function interact(
+  params: InteractInput,
+  context?: InteractContext & { getLogs?: () => LogEntry[] }
+): Promise<InteractResult> {
   const registry = getRegistry();
   const { target, actions, observe } = params;
+
+  // Create isolated context if not provided
+  const ctx = context ?? createInteractContext({ captureScreenshot: defaultScreenshotCapture });
+  const getLogs = context?.getLogs ?? (ctx as ReturnType<typeof createInteractContext>).getLogs;
 
   // Check component exists
   if (!registry.has(target)) {
@@ -133,12 +162,6 @@ export async function interact(params: InteractInput): Promise<InteractResult> {
       results: [],
       error: `Component not found: ${target}`,
     };
-  }
-
-  // Start log capture if requested
-  if (observe?.logs) {
-    logBuffer = [];
-    logCapturing = true;
   }
 
   const results: Array<SetResult | CallResult> = [];
@@ -168,16 +191,13 @@ export async function interact(params: InteractInput): Promise<InteractResult> {
     const { key, becomes, timeout = 5000 } = observe.waitFor;
     const conditionMet = await waitForCondition(target, key, becomes, timeout);
     if (!conditionMet) {
-      injectLog({
+      ctx.injectLog({
         level: 'warn',
         source: 'interact',
         message: `Timeout waiting for ${key} to become ${JSON.stringify(becomes)}`,
       });
     }
   }
-
-  // Stop log capture
-  logCapturing = false;
 
   // Build response
   const response: InteractResult = {
@@ -186,21 +206,23 @@ export async function interact(params: InteractInput): Promise<InteractResult> {
   };
 
   // Capture screenshot if requested
-  if (observe?.screenshot && screenshotCapture) {
-    const screenshot = await screenshotCapture();
+  if (observe?.screenshot && ctx.captureScreenshot) {
+    const screenshot = await ctx.captureScreenshot();
     if (screenshot) {
       response.screenshot = screenshot;
     }
   }
 
   // Include logs if captured
-  if (observe?.logs) {
-    response.logs = logBuffer;
-    logBuffer = [];
+  if (observe?.logs && getLogs) {
+    response.logs = getLogs();
   }
 
   // Include final state
-  response.finalState = registry.getState(target) ?? undefined;
+  const finalState = registry.getState(target);
+  if (finalState) {
+    response.finalState = finalState;
+  }
 
   return response;
 }

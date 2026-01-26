@@ -41,7 +41,7 @@ import type { Bindings, ExposeOptions } from './types.js';
  * useExpose(`todo-item:${item.id}`, { completed, toggle });
  */
 export function useExpose(id: string, bindings: Bindings, options: ExposeOptions = {}): void {
-  const { description, tags = [] } = options;
+  const { description, tags = [], onRegistrationError } = options;
   const transport = useContext(AgentPulseContext);
 
   // Keep bindings in ref for fresh access without re-registration
@@ -99,8 +99,9 @@ export function useExpose(id: string, bindings: Bindings, options: ExposeOptions
           description: descriptionRef.current,
           tags: tagsRef.current,
         })
-        .catch(() => {
-          // Silently ignore transport errors during registration
+        .catch((error: Error) => {
+          console.warn(`[AgentPulse] Failed to register "${id}":`, error.message);
+          onRegistrationError?.(error);
         });
     }
 
@@ -109,12 +110,12 @@ export function useExpose(id: string, bindings: Bindings, options: ExposeOptions
 
       // Notify transport about unregistration
       if (transport?.isConnected()) {
-        transport.request('unregister', { id }).catch(() => {
-          // Silently ignore transport errors during unregistration
+        transport.request('unregister', { id }).catch((error: Error) => {
+          console.warn(`[AgentPulse] Failed to unregister "${id}":`, error.message);
         });
       }
     };
-  }, [id, transport]);
+  }, [id, transport, onRegistrationError]);
 }
 
 /**

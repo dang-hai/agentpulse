@@ -65,13 +65,12 @@ export type Request<P extends ProcedureName = ProcedureName> = {
 };
 
 /**
- * Response message sent over the transport
+ * Response message sent over the transport.
+ * Discriminated union - success has result, failure has error.
  */
-export type Response<P extends ProcedureName = ProcedureName> = {
-  id: string;
-  result?: Procedures[P]['output'];
-  error?: string;
-};
+export type Response<P extends ProcedureName = ProcedureName> =
+  | { id: string; result: Procedures[P]['output']; error?: never }
+  | { id: string; result?: never; error: string };
 
 // ============================================================================
 // Transport Interface

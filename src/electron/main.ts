@@ -16,25 +16,8 @@ import * as http from 'node:http';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
-import type { ProcedureName, Procedures, Request, Response } from '../core/protocol.js';
-
-function isRequest(value: unknown): value is Request {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'id' in value &&
-    typeof value.id === 'string' &&
-    'method' in value &&
-    typeof value.method === 'string' &&
-    'params' in value
-  );
-}
-
-function isResponse(value: unknown): value is Response {
-  return (
-    typeof value === 'object' && value !== null && 'id' in value && typeof value.id === 'string'
-  );
-}
+import { isRequest, isResponse } from '../core/parse.js';
+import type { ProcedureName, Procedures, Request } from '../core/protocol.js';
 
 // Electron types (peer dependency)
 interface WebContents {

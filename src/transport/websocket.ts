@@ -5,33 +5,15 @@
  * Handles request/response correlation and incoming proxy requests.
  */
 
+import { parseMessage } from '../core/parse.js';
 import type {
   ProcedureName,
   Procedures,
   Request,
   RequestHandler,
-  Response,
   Transport,
 } from '../core/protocol.js';
 import { getRegistry } from '../core/registry.js';
-
-function isRequest(value: unknown): value is Request {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'id' in value &&
-    typeof value.id === 'string' &&
-    'method' in value &&
-    typeof value.method === 'string' &&
-    'params' in value
-  );
-}
-
-function isResponse(value: unknown): value is Response {
-  return (
-    typeof value === 'object' && value !== null && 'id' in value && typeof value.id === 'string'
-  );
-}
 
 export interface WebSocketTransportOptions {
   /** WebSocket endpoint URL (e.g., 'ws://localhost:3100/ws') */
@@ -124,7 +106,9 @@ export class WebSocketTransport implements Transport {
     method: P,
     params: Procedures[P]['input']
   ): Promise<Procedures[P]['output']> {
-    if (!this.connected || !this.ws) {
+    // Capture ws to avoid race between check and use
+    const ws = this.ws;
+    if (!this.connected || !ws) {
       throw new Error('Not connected');
     }
 
@@ -136,7 +120,7 @@ export class WebSocketTransport implements Transport {
         resolve: resolve as (result: unknown) => void,
         reject,
       });
-      this.ws?.send(JSON.stringify(req));
+      ws.send(JSON.stringify(req));
     });
   }
 
@@ -145,41 +129,49 @@ export class WebSocketTransport implements Transport {
   }
 
   private handleMessage(data: string): void {
-    try {
-      const message: unknown = JSON.parse(data);
+    const parsed = parseMessage(data);
 
-      // Check if this is a response to a pending request
-      if (isResponse(message)) {
-        const pendingRequest = this.pending.get(message.id);
+    switch (parsed.type) {
+      case 'response': {
+        const response = parsed.response;
+        const pendingRequest = this.pending.get(response.id);
         if (pendingRequest) {
           const { resolve, reject } = pendingRequest;
-          this.pending.delete(message.id);
+          this.pending.delete(response.id);
 
-          if (message.error) {
-            reject(new Error(message.error));
+          if (response.error) {
+            reject(new Error(response.error));
           } else {
-            resolve(message.result);
+            resolve(response.result);
           }
-          return;
         }
+        break;
       }
-
-      // Otherwise, treat as incoming request (proxy from server)
-      if (isRequest(message)) {
-        this.handleIncomingRequest(message);
-      }
-    } catch (error) {
-      console.error('[AgentPulse] Failed to parse message:', error);
+      case 'request':
+        this.handleIncomingRequest(parsed.request);
+        break;
+      case 'invalid':
+        console.error('[AgentPulse] Invalid message:', parsed.reason, parsed.raw);
+        break;
     }
   }
 
   private async handleIncomingRequest(req: Request): Promise<void> {
-    let result: unknown;
-    let error: string | undefined;
+    const registry = getRegistry();
+
+    // Execute against local registry and build proper discriminated response
+    const sendResponse = (
+      response: { id: string; result: unknown } | { id: string; error: string }
+    ) => {
+      if (this.ws) {
+        this.ws.send(JSON.stringify(response));
+      } else {
+        console.error('[AgentPulse] Cannot send response - connection closed');
+      }
+    };
 
     try {
-      // Execute against local registry
-      const registry = getRegistry();
+      let result: unknown;
 
       switch (req.method) {
         case 'list':
@@ -204,18 +196,13 @@ export class WebSocketTransport implements Transport {
           break;
         }
         default:
-          error = `Unknown method: ${req.method}`;
+          sendResponse({ id: req.id, error: `Unknown method: ${req.method}` });
+          return;
       }
-    } catch (e) {
-      error = String(e);
-    }
 
-    // Send response back to server
-    const response = { id: req.id, result, error };
-    if (this.ws) {
-      this.ws.send(JSON.stringify(response));
-    } else {
-      console.error('[AgentPulse] Cannot send response - connection closed');
+      sendResponse({ id: req.id, result });
+    } catch (e) {
+      sendResponse({ id: req.id, error: String(e) });
     }
   }
 

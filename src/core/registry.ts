@@ -131,9 +131,9 @@ export class ExposeRegistry {
   /**
    * Get all current state for a component
    */
-  getState(id: string): Record<string, unknown> | null {
+  getState(id: string): Record<string, unknown> | undefined {
     const entry = this.entries.get(id);
-    if (!entry) return null;
+    if (!entry) return undefined;
 
     const state: Record<string, unknown> = {};
     for (const [key, binding] of Object.entries(entry.bindings)) {
@@ -166,13 +166,13 @@ export class ExposeRegistry {
     try {
       if (this.isAccessor(binding)) {
         binding.set(value);
-        return { success: true };
+        return { success: true, value: undefined };
       }
 
       // Convention: setXxx functions are setters
       if (typeof binding === 'function' && /^set[A-Z]/.test(key)) {
         binding(value);
-        return { success: true };
+        return { success: true, value: undefined };
       }
 
       return {
@@ -209,8 +209,8 @@ export class ExposeRegistry {
     }
 
     try {
-      const result = await binding(...args);
-      return { success: true, result };
+      const value = await binding(...args);
+      return { success: true, value };
     } catch (err) {
       return { success: false, error: String(err) };
     }
