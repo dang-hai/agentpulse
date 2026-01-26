@@ -24,3 +24,12 @@ npm-debug.log*
 
 # Test coverage
 coverage/
+
+# NPM pack output
+*.tgz
+
+# Next.js
+.next/
+
+# TypeScript build info
+*.tsbuildinfo

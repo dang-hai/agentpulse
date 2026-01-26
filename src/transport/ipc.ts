@@ -13,18 +13,9 @@ import type {
   Transport,
 } from '../core/protocol.js';
 import { getRegistry } from '../core/registry.js';
+import type { AgentPulseBridge } from '../core/types.js';
 
-export interface AgentPulseBridge {
-  send: (channel: string, data: unknown) => void;
-  invoke: (channel: string, data: unknown) => Promise<unknown>;
-  on: (channel: string, callback: (data: unknown) => void) => () => void;
-}
-
-declare global {
-  interface Window {
-    agentpulse?: AgentPulseBridge;
-  }
-}
+export type { AgentPulseBridge };
 
 interface IPCResponse {
   result?: unknown;

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useExpose } from 'agentpulse';
+import { useState, useRef } from 'react';
+import { useExpose, createScrollBindings } from 'agentpulse';
 import type { Contact } from '@/types';
 
 interface ContactsPanelProps {
@@ -16,6 +16,7 @@ export function ContactsPanel({ contacts, onAdd, onUpdate, onDelete }: ContactsP
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', company: '' });
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   const filteredContacts = contacts.filter(
     (c) =>
@@ -76,8 +77,9 @@ export function ContactsPanel({ contacts, onAdd, onUpdate, onDelete }: ContactsP
       c.company.toLowerCase().includes(company.toLowerCase())
     ),
     highlightContact,
+    ...createScrollBindings(listRef),
   }, {
-    description: 'Contact management. Use addContact({ name, email?, phone?, company? }) to create, updateContact(id, data) to modify, deleteContact(id) to remove. Search with setSearch(query). highlightContact(id) to visually highlight.',
+    description: 'Contact management. Use addContact({ name, email?, phone?, company? }) to create, updateContact(id, data) to modify, deleteContact(id) to remove. Search with setSearch(query). highlightContact(id) to visually highlight. Scroll: scrollToTop(), scrollToBottom(), scrollBy(delta).',
   });
 
   useExpose('contact-form', {
@@ -158,7 +160,7 @@ export function ContactsPanel({ contacts, onAdd, onUpdate, onDelete }: ContactsP
         />
       </div>
 
-      <ul className="contact-list">
+      <ul ref={listRef} className="contact-list">
         {filteredContacts.map((contact) => (
           <li
             key={contact.id}

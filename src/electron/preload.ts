@@ -9,6 +9,10 @@
  * setupAgentPulse();
  */
 
+import type { AgentPulseBridge } from '../core/types.js';
+
+export type { AgentPulseBridge };
+
 // Electron types (peer dependency)
 interface IpcRendererEvent {
   sender: unknown;
@@ -32,18 +36,6 @@ const electron = require('electron') as {
   contextBridge: ContextBridge;
   ipcRenderer: IpcRenderer;
 };
-
-export interface AgentPulseBridge {
-  send: (channel: string, data: unknown) => void;
-  invoke: (channel: string, data: unknown) => Promise<unknown>;
-  on: (channel: string, callback: (data: unknown) => void) => () => void;
-}
-
-declare global {
-  interface Window {
-    agentpulse?: AgentPulseBridge;
-  }
-}
 
 /**
  * Set up the AgentPulse IPC bridge in the preload script.
@@ -70,6 +62,18 @@ export function setupAgentPulse(channel = 'agentpulse'): void {
       ipcRenderer.on(`${channel}:${ch}`, handler);
       return () => {
         ipcRenderer.removeListener(`${channel}:${ch}`, handler as (...args: unknown[]) => void);
+      };
+    },
+    onCustomRequest: (ch: string, handler: (payload: unknown) => Promise<unknown> | unknown) => {
+      const ipcHandler = async (_event: IpcRendererEvent, payload: unknown) => {
+        return await handler(payload);
+      };
+      ipcRenderer.on(`${channel}:custom:${ch}`, ipcHandler);
+      return () => {
+        ipcRenderer.removeListener(
+          `${channel}:custom:${ch}`,
+          ipcHandler as (...args: unknown[]) => void
+        );
       };
     },
   };

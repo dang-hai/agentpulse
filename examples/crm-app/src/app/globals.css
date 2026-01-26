@@ -146,6 +146,8 @@ button.small {
 /* Contact list */
 .contact-list {
   list-style: none;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .contact-item {

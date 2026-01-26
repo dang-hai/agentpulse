@@ -38,6 +38,8 @@
  * await server.start();
  */
 
+// Binding helpers
+export { createScrollBindings, type ScrollBindingsOptions } from './bindings/index.js';
 // Protocol types (for custom transport implementations)
 export type {
   ProcedureName,

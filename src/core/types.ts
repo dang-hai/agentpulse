@@ -156,3 +156,27 @@ export type ScreenshotCapture = () => Promise<{
   width: number;
   height: number;
 } | null>;
+
+/**
+ * Bridge interface exposed by Electron preload to renderer.
+ * Used by IPC transport to communicate with main process.
+ */
+export interface AgentPulseBridge {
+  send: (channel: string, data: unknown) => void;
+  invoke: (channel: string, data: unknown) => Promise<unknown>;
+  on: (channel: string, callback: (data: unknown) => void) => () => void;
+  /**
+   * Register a handler for custom tool requests from main process.
+   * Returns cleanup function.
+   */
+  onCustomRequest?: (
+    channel: string,
+    handler: (payload: unknown) => Promise<unknown> | unknown
+  ) => () => void;
+}
+
+declare global {
+  interface Window {
+    agentpulse?: AgentPulseBridge;
+  }
+}
