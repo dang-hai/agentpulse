@@ -30,8 +30,13 @@ export default function CRMPage() {
   const [deals, setDeals] = useState<Deal[]>(INITIAL_DEALS);
   const [movingDeals, setMovingDeals] = useState<Set<string>>(new Set());
   const [wonDeals, setWonDeals] = useState<Set<string>>(new Set());
-  const [statsUpdated, setStatsUpdated] = useState(false);
+  const [updatedStats, setUpdatedStats] = useState<Set<'contacts' | 'pipeline' | 'won'>>(new Set());
   const { toasts, removeToast, toast } = useToast();
+
+  const triggerStatUpdate = (stats: Array<'contacts' | 'pipeline' | 'won'>) => {
+    setUpdatedStats(new Set(stats));
+    setTimeout(() => setUpdatedStats(new Set()), 1000);
+  };
 
   const addContact = useCallback((data: Omit<Contact, 'id' | 'createdAt'>) => {
     const newContact: Contact = {
@@ -41,6 +46,7 @@ export default function CRMPage() {
     };
     setContacts((prev) => [...prev, newContact]);
     toast.contactAdded(data.name);
+    triggerStatUpdate(['contacts']);
     return newContact.id;
   }, [toast]);
 
@@ -53,10 +59,12 @@ export default function CRMPage() {
 
   const deleteContact = useCallback((id: string) => {
     const contact = contacts.find(c => c.id === id);
+    const hasDeals = deals.some(d => d.contactId === id);
     setContacts((prev) => prev.filter((c) => c.id !== id));
     setDeals((prev) => prev.filter((d) => d.contactId !== id));
     if (contact) toast.warning(`Deleted ${contact.name}`);
-  }, [contacts, toast]);
+    triggerStatUpdate(hasDeals ? ['contacts', 'pipeline'] : ['contacts']);
+  }, [contacts, deals, toast]);
 
   const addDeal = useCallback((data: Omit<Deal, 'id' | 'createdAt'>) => {
     const newDeal: Deal = {
@@ -66,10 +74,7 @@ export default function CRMPage() {
     };
     setDeals((prev) => [...prev, newDeal]);
     toast.success(`New deal: ${data.title}`);
-
-    setStatsUpdated(true);
-    setTimeout(() => setStatsUpdated(false), 500);
-
+    triggerStatUpdate(data.stage === 'won' ? ['pipeline', 'won'] : ['pipeline']);
     return newDeal.id;
   }, [toast]);
 
@@ -102,6 +107,7 @@ export default function CRMPage() {
       if (stage === 'won') {
         setWonDeals(prev => new Set(prev).add(id));
         toast.dealWon(deal.title, deal.value);
+        triggerStatUpdate(['pipeline', 'won']);
         setTimeout(() => {
           setWonDeals(prev => {
             const next = new Set(prev);
@@ -109,19 +115,23 @@ export default function CRMPage() {
             return next;
           });
         }, 1000);
+      } else if (stage === 'lost') {
+        toast.dealMoved(deal.title, fromStage, toStage);
+        triggerStatUpdate(['pipeline']);
       } else {
         toast.dealMoved(deal.title, fromStage, toStage);
+        triggerStatUpdate(['pipeline']);
       }
-
-      setStatsUpdated(true);
-      setTimeout(() => setStatsUpdated(false), 500);
     }, 300);
   }, [deals, toast]);
 
   const deleteDeal = useCallback((id: string) => {
     const deal = deals.find(d => d.id === id);
     setDeals((prev) => prev.filter((d) => d.id !== id));
-    if (deal) toast.warning(`Deleted: ${deal.title}`);
+    if (deal) {
+      toast.warning(`Deleted: ${deal.title}`);
+      triggerStatUpdate(deal.stage === 'won' ? ['pipeline', 'won'] : ['pipeline']);
+    }
   }, [deals, toast]);
 
   const totalPipelineValue = deals
@@ -145,15 +155,15 @@ export default function CRMPage() {
       </div>
 
       <div className="stats">
-        <div className={`stat-card ${statsUpdated ? 'updated' : ''}`}>
+        <div className={`stat-card ${updatedStats.has('contacts') ? 'updated' : ''}`}>
           <div className="stat-value">{contacts.length}</div>
           <div className="stat-label">Contacts</div>
         </div>
-        <div className={`stat-card ${statsUpdated ? 'updated' : ''}`}>
+        <div className={`stat-card ${updatedStats.has('pipeline') ? 'pipeline-updated' : ''}`}>
           <div className="stat-value">${totalPipelineValue.toLocaleString()}</div>
           <div className="stat-label">Pipeline Value</div>
         </div>
-        <div className={`stat-card ${statsUpdated ? 'updated' : ''}`}>
+        <div className={`stat-card ${updatedStats.has('won') ? 'won-updated' : ''}`}>
           <div className="stat-value">${wonValue.toLocaleString()}</div>
           <div className="stat-label">Won Deals</div>
         </div>
