@@ -3,17 +3,29 @@
   "version": "0.1.0",
   "description": "Make React apps MCP-controllable. Expose component state and actions to AI agents.",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./server": {
-      "types": "./dist/server/index.d.ts",
-      "import": "./dist/server/index.js"
+      "import": {
+        "types": "./dist/server/index.d.ts",
+        "default": "./dist/server/index.js"
+      },
+      "require": {
+        "types": "./dist/server/index.d.cts",
+        "default": "./dist/server/index.cjs"
+      }
     }
   },
   "bin": {
@@ -23,13 +35,17 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
     "format": "biome format --write src",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "check": "tsc --noEmit && attw --pack --ignore-rules=no-resolution && publint",
+    "prepublishOnly": "npm run build && npm run check",
     "prepare": "husky"
   },
   "peerDependencies": {
@@ -41,6 +57,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.2",
     "@biomejs/biome": "^2.3.12",
     "@commitlint/cli": "^20.3.1",
     "@commitlint/config-conventional": "^20.3.1",
@@ -48,7 +65,10 @@
     "@types/react": "^18.0.0",
     "@types/ws": "^8.5.0",
     "husky": "^9.1.7",
-    "typescript": "^5.0.0"
+    "publint": "^0.3.17",
+    "tsup": "^8.5.1",
+    "typescript": "^5.0.0",
+    "vitest": "^4.0.18"
   },
   "keywords": [
     "react",

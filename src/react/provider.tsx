@@ -15,10 +15,15 @@
  * }
  */
 
-import React, { type ReactNode, useEffect, useMemo, useState } from 'react';
+import React, { type JSX, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { AgentPulseContext } from '../core/context.js';
 import type { Transport } from '../core/protocol.js';
 import { WebSocketTransport } from '../transport/websocket.js';
+
+export interface UseAgentPulseResult {
+  isConnected: boolean;
+  transport: Transport | null;
+}
 
 export interface AgentPulseProviderProps {
   /** WebSocket endpoint URL (e.g., 'ws://localhost:3100/ws') */
@@ -59,7 +64,7 @@ export function AgentPulseProvider({
   onDisconnect,
   onError,
   children,
-}: AgentPulseProviderProps) {
+}: AgentPulseProviderProps): JSX.Element {
   const [, setIsConnected] = useState(false);
 
   // Create transport (either custom or WebSocket)
@@ -114,11 +119,11 @@ export function AgentPulseProvider({
  *   return <div>{isConnected ? 'Connected' : 'Disconnected'}</div>;
  * }
  */
-export function useAgentPulse() {
+export function useAgentPulse(): UseAgentPulseResult {
   const transport = React.useContext(AgentPulseContext);
 
   return {
     isConnected: transport?.isConnected() ?? false,
-    transport,
+    transport: transport,
   };
 }
