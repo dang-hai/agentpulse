@@ -29,10 +29,7 @@ function isRequest(value: unknown): value is Request {
 
 function isResponse(value: unknown): value is Response {
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    'id' in value &&
-    typeof value.id === 'string'
+    typeof value === 'object' && value !== null && 'id' in value && typeof value.id === 'string'
   );
 }
 
