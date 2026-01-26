@@ -25,6 +25,15 @@ declare global {
   }
 }
 
+interface IPCResponse {
+  result?: unknown;
+  error?: string;
+}
+
+function isIPCResponse(value: unknown): value is IPCResponse {
+  return typeof value === 'object' && value !== null;
+}
+
 /**
  * Create an IPC transport for Electron.
  *
@@ -101,10 +110,11 @@ export class IPCTransport implements Transport {
     const id = crypto.randomUUID();
     const req: Request<P> = { id, method, params };
 
-    const response = (await this.bridge.invoke('request', req)) as {
-      result?: Procedures[P]['output'];
-      error?: string;
-    };
+    const response = await this.bridge.invoke('request', req);
+
+    if (!isIPCResponse(response)) {
+      throw new Error('Invalid response from IPC');
+    }
 
     if (response.error) {
       throw new Error(response.error);
