@@ -20,25 +20,30 @@ npm run format       # Format code with Biome
 
 ## Architecture Overview
 
-AgentPulse makes React apps controllable by MCP clients (like Claude Code). It bridges the browser and MCP protocol through a three-tier architecture:
+AgentPulse makes React apps controllable by MCP clients (like Claude Code). It bridges the renderer and MCP protocol through a three-tier architecture:
 
 ```
-Browser (React)  ←─WebSocket─→  MCP Server (Node.js)  ←─MCP─→  AI Client
+Browser/Renderer (React)  ←─WebSocket/IPC─→  MCP Server  ←─MCP─→  AI Client
 ```
 
 ### Core Modules
 
-**Client-side (Browser)**
+**Client-side (Browser/Renderer)**
 - `src/core/useExpose.ts` - React hook that registers component state/actions to the registry. Uses a Proxy to keep bindings fresh without re-registration.
 - `src/core/registry.ts` - Singleton `ExposeRegistry` storing all exposed bindings. Handles get/set/call operations on registered components.
 - `src/transport/websocket.ts` - Browser-side WebSocket client. Receives requests from server, executes against local registry, returns results.
-- `src/react/provider.tsx` - `AgentPulseProvider` context that creates transport and handles lifecycle.
+- `src/transport/ipc.ts` - Electron IPC transport. Same pattern as WebSocket but uses `window.agentpulse` bridge.
+- `src/react/provider.tsx` - `AgentPulseProvider` context that creates transport and handles lifecycle. Auto-detects IPC bridge for Electron.
 
 **Server-side (Node.js)**
 - `src/server/mcp-server.ts` - HTTP server with two roles:
   1. MCP endpoint (`/mcp`) - Registers tools (`expose_list`, `expose_get`, `expose_set`, `expose_call`, `discover`, `interact`) and handles MCP protocol
   2. WebSocket endpoint (`/ws`) - Accepts browser connections, proxies MCP tool calls to connected browsers
 - `src/cli.ts` - CLI entry point (`npx agentpulse`)
+
+**Electron-specific**
+- `src/electron/preload.ts` - `setupAgentPulse()` exposes IPC bridge via contextBridge
+- `src/electron/main.ts` - `ElectronServer` - IPC handlers + MCP server for Electron main process
 
 **Protocol (`src/core/protocol.ts`)**
 - Type-safe request/response protocol for browser↔server communication
@@ -62,5 +67,7 @@ The registry supports three binding patterns:
 
 ## Package Exports
 
-- `agentpulse` - React hooks and components (`useExpose`, `AgentPulseProvider`)
-- `agentpulse/server` - Server-side (`createServer`, `AgentPulseServer`)
+- `agentpulse` - React hooks and components (`useExpose`, `AgentPulseProvider`, `createIPCTransport`)
+- `agentpulse/server` - Server-side for browser apps (`createServer`, `AgentPulseServer`)
+- `agentpulse/preload` - Electron preload script (`setupAgentPulse`)
+- `agentpulse/main` - Electron main process (`createServer`, `ElectronServer`)

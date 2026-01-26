@@ -18,6 +18,7 @@
 import React, { type JSX, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { AgentPulseContext } from '../core/context.js';
 import type { Transport } from '../core/protocol.js';
+import { createIPCTransport } from '../transport/ipc.js';
 import { WebSocketTransport } from '../transport/websocket.js';
 
 export interface UseAgentPulseResult {
@@ -67,7 +68,7 @@ export function AgentPulseProvider({
 }: AgentPulseProviderProps): JSX.Element {
   const [, setIsConnected] = useState(false);
 
-  // Create transport (either custom or WebSocket)
+  // Create transport (custom, WebSocket, or IPC auto-detect)
   const transport = useMemo(() => {
     if (customTransport) {
       return customTransport;
@@ -75,8 +76,28 @@ export function AgentPulseProvider({
     if (endpoint) {
       return new WebSocketTransport({ url: endpoint });
     }
+    // Auto-detect Electron IPC bridge (fail-fast if in Electron without bridge)
+    if (typeof window !== 'undefined' && window.agentpulse) {
+      return createIPCTransport();
+    }
     return null;
   }, [endpoint, customTransport]);
+
+  // Help developers debug missing setup in Electron
+  useEffect(() => {
+    if (!transport && !endpoint && !customTransport) {
+      const isElectron =
+        typeof window !== 'undefined' &&
+        typeof process !== 'undefined' &&
+        (process as NodeJS.Process).versions?.electron;
+      if (isElectron) {
+        console.error(
+          '[AgentPulse] Electron detected but window.agentpulse missing. ' +
+            'Add setupAgentPulse() to your preload script.'
+        );
+      }
+    }
+  }, [transport, endpoint, customTransport]);
 
   // Connect on mount, disconnect on unmount
   useEffect(() => {

@@ -12,17 +12,17 @@ Now Claude Code (or any MCP client) can type, click, and interact with your Reac
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  React App (Browser)                                        │
+│  React App (Browser or Electron Renderer)                   │
 │                                                             │
-│  <AgentPulseProvider endpoint="ws://localhost:3100">        │
+│  <AgentPulseProvider>                                       │
 │       │                                                     │
 │       └──▶ useExpose('todo-input', { value, setValue })     │
 │                                                             │
 └───────────────────────────┬─────────────────────────────────┘
-                            │ WebSocket
+                            │ WebSocket (browser) or IPC (Electron)
 ┌───────────────────────────▼─────────────────────────────────┐
-│  MCP Server (Node.js)                                       │
-│  - Proxies MCP tool calls to browser                        │
+│  MCP Server (Node.js or Electron Main)                      │
+│  - Proxies MCP tool calls to renderer                       │
 │  - Tools: discover, expose_get, expose_set, expose_call     │
 └───────────────────────────┬─────────────────────────────────┘
                             │ MCP Protocol
@@ -86,6 +86,36 @@ Now the AI can discover and interact with your components:
 > expose_set('chat-input', 'value', 'Hello!')
 > expose_call('chat-input', 'send')
 ```
+
+## Electron Apps
+
+For Electron apps, AgentPulse uses IPC instead of WebSocket. Three lines to integrate:
+
+```typescript
+// preload.ts
+import { setupAgentPulse } from 'agentpulse/preload';
+setupAgentPulse();
+```
+
+```typescript
+// main.ts
+import { ipcMain } from 'electron';
+import { createServer } from 'agentpulse/main';
+
+const server = createServer({ ipcMain });
+await server.start();
+```
+
+```tsx
+// renderer.tsx - zero config, auto-detects IPC
+import { AgentPulseProvider } from 'agentpulse';
+
+<AgentPulseProvider>
+  <App />
+</AgentPulseProvider>
+```
+
+The provider auto-detects `window.agentpulse` (set up by preload) and uses IPC transport automatically.
 
 ## MCP Tools
 

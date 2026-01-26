@@ -26,6 +26,26 @@
         "types": "./dist/server/index.d.cts",
         "default": "./dist/server/index.cjs"
       }
+    },
+    "./preload": {
+      "import": {
+        "types": "./dist/electron/preload-index.d.ts",
+        "default": "./dist/electron/preload-index.js"
+      },
+      "require": {
+        "types": "./dist/electron/preload-index.d.cts",
+        "default": "./dist/electron/preload-index.cjs"
+      }
+    },
+    "./main": {
+      "import": {
+        "types": "./dist/electron/index.d.ts",
+        "default": "./dist/electron/index.js"
+      },
+      "require": {
+        "types": "./dist/electron/index.d.cts",
+        "default": "./dist/electron/index.cjs"
+      }
     }
   },
   "bin": {
