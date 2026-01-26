@@ -69,7 +69,13 @@
     "prepare": "husky"
   },
   "peerDependencies": {
-    "react": ">=18.0.0"
+    "react": ">=18.0.0",
+    "electron": ">=20.0.0"
+  },
+  "peerDependenciesMeta": {
+    "electron": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
