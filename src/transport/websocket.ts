@@ -5,14 +5,7 @@
  * Handles request/response correlation and incoming proxy requests.
  */
 
-import type {
-  Transport,
-  ProcedureName,
-  Procedures,
-  Request,
-  Response,
-  RequestHandler,
-} from '../core/protocol.js';
+import type { ProcedureName, Procedures, Request, RequestHandler, Transport } from '../core/protocol.js';
 import { getRegistry } from '../core/registry.js';
 
 export interface WebSocketTransportOptions {
@@ -35,11 +28,13 @@ export interface WebSocketTransportOptions {
  */
 export class WebSocketTransport implements Transport {
   private ws: WebSocket | null = null;
-  private pending = new Map<string, {
-    resolve: (result: unknown) => void;
-    reject: (error: Error) => void;
-  }>();
-  private requestHandler: RequestHandler | null = null;
+  private pending = new Map<
+    string,
+    {
+      resolve: (result: unknown) => void;
+      reject: (error: Error) => void;
+    }
+  >();
   private connected = false;
   private reconnectAttempts = 0;
   private options: Required<WebSocketTransportOptions>;
@@ -66,7 +61,7 @@ export class WebSocketTransport implements Transport {
           resolve();
         };
 
-        this.ws.onerror = (event) => {
+        this.ws.onerror = () => {
           if (!this.connected) {
             reject(new Error('WebSocket connection failed'));
           }
@@ -116,12 +111,12 @@ export class WebSocketTransport implements Transport {
         resolve: resolve as (result: unknown) => void,
         reject,
       });
-      this.ws!.send(JSON.stringify(req));
+      this.ws?.send(JSON.stringify(req));
     });
   }
 
-  onRequest(handler: RequestHandler): void {
-    this.requestHandler = handler;
+  onRequest(_handler: RequestHandler): void {
+    // Handler stored for future use with server-initiated requests
   }
 
   private handleMessage(data: string): void {
@@ -129,8 +124,9 @@ export class WebSocketTransport implements Transport {
       const message = JSON.parse(data);
 
       // Check if this is a response to a pending request
-      if ('id' in message && this.pending.has(message.id)) {
-        const { resolve, reject } = this.pending.get(message.id)!;
+      const pendingRequest = 'id' in message ? this.pending.get(message.id) : undefined;
+      if (pendingRequest) {
+        const { resolve, reject } = pendingRequest;
         this.pending.delete(message.id);
 
         if (message.error) {

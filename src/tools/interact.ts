@@ -23,31 +23,45 @@
 
 import { z } from 'zod';
 import { getRegistry } from '../core/registry.js';
-import type { CallResult, InteractResult, LogEntry, ScreenshotCapture, SetResult } from '../core/types.js';
+import type {
+  CallResult,
+  InteractResult,
+  LogEntry,
+  ScreenshotCapture,
+  SetResult,
+} from '../core/types.js';
 
 // Schema for the interact tool
 export const interactSchema = z.object({
   target: z.string().describe('Component ID to interact with'),
-  actions: z.array(
-    z.union([
-      z.object({
-        set: z.record(z.unknown()).describe('Key-value pairs to set'),
-      }),
-      z.object({
-        call: z.string().describe('Action name to call'),
-        args: z.array(z.unknown()).optional().describe('Arguments for the action'),
-      }),
-    ])
-  ).describe('Actions to execute in sequence'),
-  observe: z.object({
-    screenshot: z.boolean().optional().describe('Capture screenshot after actions'),
-    logs: z.boolean().optional().describe('Collect logs during execution'),
-    waitFor: z.object({
-      key: z.string().describe('State key to watch'),
-      becomes: z.unknown().describe('Value to wait for'),
-      timeout: z.number().optional().describe('Timeout in ms (default: 5000)'),
-    }).optional().describe('Wait for a state condition after actions'),
-  }).optional().describe('Observation options'),
+  actions: z
+    .array(
+      z.union([
+        z.object({
+          set: z.record(z.unknown()).describe('Key-value pairs to set'),
+        }),
+        z.object({
+          call: z.string().describe('Action name to call'),
+          args: z.array(z.unknown()).optional().describe('Arguments for the action'),
+        }),
+      ])
+    )
+    .describe('Actions to execute in sequence'),
+  observe: z
+    .object({
+      screenshot: z.boolean().optional().describe('Capture screenshot after actions'),
+      logs: z.boolean().optional().describe('Collect logs during execution'),
+      waitFor: z
+        .object({
+          key: z.string().describe('State key to watch'),
+          becomes: z.unknown().describe('Value to wait for'),
+          timeout: z.number().optional().describe('Timeout in ms (default: 5000)'),
+        })
+        .optional()
+        .describe('Wait for a state condition after actions'),
+    })
+    .optional()
+    .describe('Observation options'),
 });
 
 export type InteractInput = z.infer<typeof interactSchema>;

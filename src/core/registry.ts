@@ -24,15 +24,11 @@ export class ExposeRegistry {
    * Register bindings for a component.
    * Returns an unregister function for cleanup.
    */
-  register(
-    id: string,
-    bindings: Bindings,
-    options: ExposeOptions = {}
-  ): () => void {
+  register(id: string, bindings: Bindings, options: ExposeOptions = {}): () => void {
     const { description, tags = [] } = options;
 
-    if (this.entries.has(id)) {
-      const existing = this.entries.get(id)!;
+    const existing = this.entries.get(id);
+    if (existing) {
       existing.bindings = bindings;
       existing.description = description;
       existing.tags = tags;

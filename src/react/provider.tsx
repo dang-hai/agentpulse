@@ -15,10 +15,10 @@
  * }
  */
 
-import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
+import React, { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { AgentPulseContext } from '../core/context.js';
-import { WebSocketTransport } from '../transport/websocket.js';
 import type { Transport } from '../core/protocol.js';
+import { WebSocketTransport } from '../transport/websocket.js';
 
 export interface AgentPulseProviderProps {
   /** WebSocket endpoint URL (e.g., 'ws://localhost:3100/ws') */
@@ -60,7 +60,7 @@ export function AgentPulseProvider({
   onError,
   children,
 }: AgentPulseProviderProps) {
-  const [isConnected, setIsConnected] = useState(false);
+  const [, setIsConnected] = useState(false);
 
   // Create transport (either custom or WebSocket)
   const transport = useMemo(() => {
@@ -79,7 +79,8 @@ export function AgentPulseProvider({
 
     let mounted = true;
 
-    transport.connect()
+    transport
+      .connect()
       .then(() => {
         if (mounted) {
           setIsConnected(true);
@@ -101,11 +102,7 @@ export function AgentPulseProvider({
     };
   }, [transport, onConnect, onDisconnect, onError]);
 
-  return (
-    <AgentPulseContext.Provider value={transport}>
-      {children}
-    </AgentPulseContext.Provider>
-  );
+  return <AgentPulseContext.Provider value={transport}>{children}</AgentPulseContext.Provider>;
 }
 
 /**

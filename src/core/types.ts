@@ -82,9 +82,7 @@ export interface CallResult {
 /**
  * Action types for the interact tool
  */
-export type InteractAction =
-  | { set: Record<string, unknown> }
-  | { call: string; args?: unknown[] };
+export type InteractAction = { set: Record<string, unknown> } | { call: string; args?: unknown[] };
 
 /**
  * Options for the interact tool

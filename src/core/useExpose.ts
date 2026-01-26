@@ -15,8 +15,8 @@
  */
 
 import { useContext, useEffect, useId, useRef } from 'react';
-import { getRegistry } from './registry.js';
 import { AgentPulseContext } from './context.js';
+import { getRegistry } from './registry.js';
 import type { Bindings, ExposeOptions } from './types.js';
 
 /**
@@ -40,11 +40,7 @@ import type { Bindings, ExposeOptions } from './types.js';
  * // Multiple instances with unique IDs
  * useExpose(`todo-item:${item.id}`, { completed, toggle });
  */
-export function useExpose(
-  id: string,
-  bindings: Bindings,
-  options: ExposeOptions = {}
-): void {
+export function useExpose(id: string, bindings: Bindings, options: ExposeOptions = {}): void {
   const { description, tags = [] } = options;
   const transport = useContext(AgentPulseContext);
 
@@ -65,9 +61,7 @@ export function useExpose(
           return Object.keys(bindingsRef.current);
         },
         getOwnPropertyDescriptor(_target, prop: string): PropertyDescriptor | undefined {
-          return prop in bindingsRef.current
-            ? { enumerable: true, configurable: true }
-            : undefined;
+          return prop in bindingsRef.current ? { enumerable: true, configurable: true } : undefined;
         },
         has(_target, prop: string) {
           return prop in bindingsRef.current;
@@ -89,21 +83,25 @@ export function useExpose(
   useEffect(() => {
     // Register to local registry
     const registry = getRegistry();
-    const unregister = registry.register(id, stableBindingsRef.current!, {
+    const bindings = stableBindingsRef.current;
+    if (!bindings) return;
+    const unregister = registry.register(id, bindings, {
       description: descriptionRef.current,
       tags: tagsRef.current,
     });
 
     // Notify transport (if connected) about registration
     if (transport?.isConnected()) {
-      transport.request('register', {
-        id,
-        keys: Object.keys(bindingsRef.current),
-        description: descriptionRef.current,
-        tags: tagsRef.current,
-      }).catch(() => {
-        // Silently ignore transport errors during registration
-      });
+      transport
+        .request('register', {
+          id,
+          keys: Object.keys(bindingsRef.current),
+          description: descriptionRef.current,
+          tags: tagsRef.current,
+        })
+        .catch(() => {
+          // Silently ignore transport errors during registration
+        });
     }
 
     return () => {
@@ -116,7 +114,7 @@ export function useExpose(
         });
       }
     };
-  }, [id, tagsKey, transport]);
+  }, [id, transport]);
 }
 
 /**
@@ -150,11 +148,7 @@ export function useExposeId(prefix: string): string {
  * // Cleanup when done
  * unregister();
  */
-export function expose(
-  id: string,
-  bindings: Bindings,
-  options: ExposeOptions = {}
-): () => void {
+export function expose(id: string, bindings: Bindings, options: ExposeOptions = {}): () => void {
   const registry = getRegistry();
   return registry.register(id, bindings, options);
 }

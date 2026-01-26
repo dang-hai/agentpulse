@@ -6,16 +6,11 @@
  */
 
 import * as http from 'node:http';
-import { WebSocketServer, WebSocket } from 'ws';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { type WebSocket, WebSocketServer } from 'ws';
 import { z } from 'zod';
-import type {
-  Request,
-  Response,
-  Procedures,
-  ProcedureName,
-} from '../core/index.js';
+import type { ProcedureName, Procedures, Request, Response } from '../core/index.js';
 
 export interface AgentPulseServerOptions {
   /** Host to bind to (default: 'localhost') */
@@ -53,10 +48,13 @@ export class AgentPulseServer {
   private httpServer: http.Server | null = null;
   private wss: WebSocketServer | null = null;
   private connections = new Map<WebSocket, BrowserConnection>();
-  private pending = new Map<string, {
-    resolve: (result: unknown) => void;
-    reject: (error: Error) => void;
-  }>();
+  private pending = new Map<
+    string,
+    {
+      resolve: (result: unknown) => void;
+      reject: (error: Error) => void;
+    }
+  >();
   private options: Required<AgentPulseServerOptions>;
 
   constructor(options: AgentPulseServerOptions = {}) {
@@ -89,7 +87,8 @@ export class AgentPulseServer {
     server.registerTool(
       'expose_list',
       {
-        description: 'List all exposed components. Use this first to discover what can be controlled.',
+        description:
+          'List all exposed components. Use this first to discover what can be controlled.',
         inputSchema: z.object({
           tag: z.string().optional().describe('Filter by tag'),
         }),
@@ -182,15 +181,17 @@ export class AgentPulseServer {
           'Bundles set/call actions in a single call to reduce round trips.',
         inputSchema: z.object({
           target: z.string().describe('Component ID to interact with'),
-          actions: z.array(
-            z.union([
-              z.object({ set: z.record(z.unknown()).describe('Key-value pairs to set') }),
-              z.object({
-                call: z.string().describe('Action name to call'),
-                args: z.array(z.unknown()).optional().describe('Arguments for the action'),
-              }),
-            ])
-          ).describe('Actions to execute in sequence'),
+          actions: z
+            .array(
+              z.union([
+                z.object({ set: z.record(z.unknown()).describe('Key-value pairs to set') }),
+                z.object({
+                  call: z.string().describe('Action name to call'),
+                  args: z.array(z.unknown()).optional().describe('Arguments for the action'),
+                }),
+              ])
+            )
+            .describe('Actions to execute in sequence'),
         }),
       },
       async (args) => {
@@ -218,13 +219,19 @@ export class AgentPulseServer {
         }
 
         return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify({
-              success: results.every(r => r.success),
-              results,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  success: results.every((r) => r.success),
+                  results,
+                },
+                null,
+                2
+              ),
+            },
+          ],
         };
       }
     );
@@ -283,8 +290,9 @@ export class AgentPulseServer {
       const message = JSON.parse(data);
 
       // Check if this is a response to a pending request
-      if ('id' in message && this.pending.has(message.id)) {
-        const { resolve, reject } = this.pending.get(message.id)!;
+      const pendingRequest = 'id' in message ? this.pending.get(message.id) : undefined;
+      if (pendingRequest) {
+        const { resolve, reject } = pendingRequest;
         this.pending.delete(message.id);
 
         if (message.error) {
@@ -357,7 +365,7 @@ export class AgentPulseServer {
             // Ignore cleanup errors
           }
         });
-      } catch (error) {
+      } catch {
         try {
           await transport.close();
           await mcpServer.close();
@@ -367,11 +375,13 @@ export class AgentPulseServer {
 
         if (!res.headersSent) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-            jsonrpc: '2.0',
-            error: { code: -32603, message: 'Internal server error' },
-            id: null,
-          }));
+          res.end(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              error: { code: -32603, message: 'Internal server error' },
+              id: null,
+            })
+          );
         }
       }
     });
@@ -403,9 +413,12 @@ export class AgentPulseServer {
       });
     });
 
+    const server = this.httpServer;
+    if (!server) return;
+
     await new Promise<void>((resolve, reject) => {
-      this.httpServer!.on('error', reject);
-      this.httpServer!.listen(port, host, () => {
+      server.on('error', reject);
+      server.listen(port, host, () => {
         console.log(`[AgentPulse] MCP server started at http://${host}:${port}${path}`);
         console.log(`[AgentPulse] WebSocket endpoint at ws://${host}:${port}${wsPath}`);
         resolve();
@@ -431,8 +444,9 @@ export class AgentPulseServer {
 
     // Close HTTP server
     if (this.httpServer) {
+      const server = this.httpServer;
       await new Promise<void>((resolve) => {
-        this.httpServer!.close(() => resolve());
+        server.close(() => resolve());
       });
       this.httpServer = null;
       console.log('[AgentPulse] MCP server stopped');

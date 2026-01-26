@@ -38,40 +38,36 @@
  * await server.start();
  */
 
-// React hooks and utilities
-export { useExpose, useExposeId, expose } from './core/useExpose.js';
+// Protocol types (for custom transport implementations)
+export type {
+  ProcedureName,
+  Procedures,
+  Request,
+  RequestHandler,
+  Response,
+  Transport,
+} from './core/protocol.js';
 export { getRegistry, resetRegistry } from './core/registry.js';
-
-// React components
-export { AgentPulseProvider, useAgentPulse } from './react/provider.js';
-export type { AgentPulseProviderProps } from './react/provider.js';
-
-// Transport
-export { WebSocketTransport } from './transport/websocket.js';
-export type { WebSocketTransportOptions } from './transport/websocket.js';
-
 // Types
 export type {
   Bindings,
   BindingValue,
-  ExposeOptions,
-  ExposeInfo,
-  DiscoverInfo,
-  GetResult,
-  SetResult,
   CallResult,
+  DiscoverInfo,
+  ExposeInfo,
+  ExposeOptions,
+  GetResult,
   InteractAction,
   InteractOptions,
   InteractResult,
   LogEntry,
+  SetResult,
 } from './core/types.js';
-
-// Protocol types (for custom transport implementations)
-export type {
-  Transport,
-  Procedures,
-  ProcedureName,
-  Request,
-  Response,
-  RequestHandler,
-} from './core/protocol.js';
+// React hooks and utilities
+export { expose, useExpose, useExposeId } from './core/useExpose.js';
+export type { AgentPulseProviderProps } from './react/provider.js';
+// React components
+export { AgentPulseProvider, useAgentPulse } from './react/provider.js';
+export type { WebSocketTransportOptions } from './transport/websocket.js';
+// Transport
+export { WebSocketTransport } from './transport/websocket.js';

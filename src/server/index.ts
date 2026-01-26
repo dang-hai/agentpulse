@@ -4,5 +4,5 @@
  * Server-side exports for running the MCP server.
  */
 
-export { AgentPulseServer, createServer, type AgentPulseServerOptions } from './mcp-server.js';
-export { setScreenshotCapture, injectLog } from '../tools/interact.js';
+export { injectLog, setScreenshotCapture } from '../tools/interact.js';
+export { AgentPulseServer, type AgentPulseServerOptions, createServer } from './mcp-server.js';

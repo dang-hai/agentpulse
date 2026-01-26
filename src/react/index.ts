@@ -4,4 +4,4 @@
  * React-specific exports for AgentPulse.
  */
 
-export { AgentPulseProvider, useAgentPulse, type AgentPulseProviderProps } from './provider.js';
+export { AgentPulseProvider, type AgentPulseProviderProps, useAgentPulse } from './provider.js';

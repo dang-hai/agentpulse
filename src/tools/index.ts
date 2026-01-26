@@ -5,30 +5,29 @@
  */
 
 export {
-  exposeList,
-  exposeListSchema,
-  exposeGet,
-  exposeGetSchema,
-  exposeSet,
-  exposeSetSchema,
+  type DiscoverInput,
+  discover,
+  discoverSchema,
+} from './discover.js';
+export {
+  type ExposeCallInput,
+  type ExposeGetInput,
+  type ExposeListInput,
+  type ExposeSetInput,
   exposeCall,
   exposeCallSchema,
-  type ExposeListInput,
-  type ExposeGetInput,
-  type ExposeSetInput,
-  type ExposeCallInput,
+  exposeGet,
+  exposeGetSchema,
+  exposeList,
+  exposeListSchema,
+  exposeSet,
+  exposeSetSchema,
 } from './expose.js';
 
 export {
-  discover,
-  discoverSchema,
-  type DiscoverInput,
-} from './discover.js';
-
-export {
+  type InteractInput,
+  injectLog,
   interact,
   interactSchema,
   setScreenshotCapture,
-  injectLog,
-  type InteractInput,
 } from './interact.js';

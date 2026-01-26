@@ -5,13 +5,7 @@
  * Used by WebSocket transport, Electron IPC, or any other transport.
  */
 
-import type {
-  ExposeInfo,
-  DiscoverInfo,
-  GetResult,
-  SetResult,
-  CallResult,
-} from './types.js';
+import type { CallResult, DiscoverInfo, ExposeInfo, GetResult, SetResult } from './types.js';
 
 // ============================================================================
 // Procedure Definitions
