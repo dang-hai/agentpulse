@@ -1,255 +1,113 @@
 # AgentPulse
 
-Make React apps MCP-controllable. One line to expose component state to AI agents.
+Let AI agents control your React app.
 
 ```tsx
-useExpose('chat-input', { value, setValue, send });
+useExpose('todo', { items, addItem, toggleItem, deleteItem });
 ```
 
-Now Claude Code (or any MCP client) can type, click, and interact with your React app.
+Now Claude can interact with your UI directly.
 
-## How It Works
+## Setup
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  React App (Browser or Electron Renderer)                   │
-│                                                             │
-│  <AgentPulseProvider>                                       │
-│       │                                                     │
-│       └──▶ useExpose('todo-input', { value, setValue })     │
-│                                                             │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ WebSocket (browser) or IPC (Electron)
-┌───────────────────────────▼─────────────────────────────────┐
-│  MCP Server (Node.js or Electron Main)                      │
-│  - Proxies MCP tool calls to renderer                       │
-│  - Tools: discover, expose_get, expose_set, expose_call     │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ MCP Protocol
-┌───────────────────────────▼─────────────────────────────────┐
-│  MCP Client (Claude Code, etc.)                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Quick Start
-
-### AI-Assisted Setup (Recommended)
-
-Install the AgentPulse skills for your AI coding assistant:
+### With AI Assistant (Recommended)
 
 ```bash
-npx add-skill agentpulse agentpulse-setup
+npx add-skill dang-hai/agentpulse
 ```
 
-Then ask your AI:
-- *"Set up AgentPulse in my project"* → Uses `agentpulse-setup` skill
-- *"Expose my login form to AgentPulse"* → Uses `agentpulse` skill
+Then ask Claude: *"Set up AgentPulse in my project"*
 
-The AI handles installation, configuration, and writes `useExpose` hooks for you.
-
-### Manual Setup
-
-#### 1. Install
+### Manual
 
 ```bash
 npm install agentpulse
 ```
 
-#### 2. Wrap your app
+**1. Wrap your app**
 
 ```tsx
 import { AgentPulseProvider } from 'agentpulse';
 
-function App() {
-  return (
-    <AgentPulseProvider endpoint="ws://localhost:3100/ws">
-      <MyApp />
-    </AgentPulseProvider>
-  );
-}
+<AgentPulseProvider endpoint="ws://localhost:3100/ws">
+  <App />
+</AgentPulseProvider>
 ```
 
-#### 3. Expose components
+**2. Expose a component**
 
 ```tsx
 import { useExpose } from 'agentpulse';
 
-function ChatInput({ onSend }) {
-  const [value, setValue] = useState('');
+function TodoList() {
+  const [items, setItems] = useState([]);
 
-  useExpose('chat-input', { value, setValue, send: () => onSend(value) }, {
-    description: 'Chat input. Use setValue(text) then send() to send a message.',
+  useExpose('todo-list', {
+    items,
+    addItem: (text) => setItems([...items, { id: Date.now(), text }]),
+    deleteItem: (id) => setItems(items.filter(i => i.id !== id)),
   });
 
-  return <input value={value} onChange={e => setValue(e.target.value)} />;
+  return <ul>{items.map(item => <li key={item.id}>{item.text}</li>)}</ul>;
 }
 ```
 
-#### 4. Start the server
+**3. Start the server**
 
 ```bash
 npx agentpulse
 ```
 
-Or programmatically:
+**4. Connect Claude**
 
-```ts
-import { createServer } from 'agentpulse/server';
-
-const server = createServer({ port: 3100 });
-await server.start();
-```
-
-#### 5. Connect an MCP client
-
-**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
-    "agentpulse": {
-      "url": "http://localhost:3100/mcp"
-    }
+    "agentpulse": { "url": "http://localhost:3100/mcp" }
   }
 }
 ```
 
-**Claude Code** (MCP settings):
+Done. Claude can now call `discover()` to see your components and interact with them.
 
-```json
-{
-  "mcpServers": {
-    "agentpulse": {
-      "url": "http://localhost:3100/mcp"
-    }
-  }
-}
-```
+## What to Expose
 
-Now the AI can discover and interact with your components:
+| Component | Expose |
+|-----------|--------|
+| Forms | `{ values, setField, submit, errors }` |
+| Lists | `{ items, add, remove, toggle }` |
+| Inputs | `{ value, setValue, clear }` |
+| Modals | `{ isOpen, open, close }` |
 
-```
-> discover()           # See all exposed components
-> expose_set('chat-input', 'value', 'Hello!')
-> expose_call('chat-input', 'send')
-```
-
-## Package Exports
-
-| Import | Use Case |
-|--------|----------|
-| `agentpulse` | React hooks and components |
-| `agentpulse/server` | MCP server for web apps (Node.js) |
-| `agentpulse/preload` | Electron preload script |
-| `agentpulse/main` | Electron main process server |
-
-## API Reference
-
-### `useExpose(id, bindings, options?)`
-
-Register component state and actions for MCP access.
+Write a `description` to help the AI understand your component:
 
 ```tsx
-useExpose('component-id', {
-  // Values (read-only)
-  count: 5,
-
-  // Accessors (read-write) - setXxx naming auto-detected
-  value,
-  setValue,
-
-  // Functions (callable actions)
-  submit: handleSubmit,
-}, {
-  description: 'Human-readable description for AI',
-  tags: ['form', 'input'], // Optional categorization
+useExpose('search', { query, setQuery, search }, {
+  description: 'Search box. Use setQuery(text), then search() to execute.',
 });
 ```
 
-### `useAgentPulse()`
+## Electron
 
-Access connection status.
-
-```tsx
-const { isConnected } = useAgentPulse();
-```
-
-### `AgentPulseProvider`
-
-```tsx
-<AgentPulseProvider
-  endpoint="ws://localhost:3100/ws"  // Server WebSocket URL
-  autoConnect={true}                  // Connect on mount (default: true)
->
-  {children}
-</AgentPulseProvider>
-```
-
-## Electron Apps
-
-For Electron apps, AgentPulse uses IPC instead of WebSocket. Three lines to integrate:
-
-```typescript
+```ts
 // preload.ts
 import { setupAgentPulse } from 'agentpulse/preload';
 setupAgentPulse();
-```
 
-```typescript
 // main.ts
-import { ipcMain } from 'electron';
 import { createServer } from 'agentpulse/main';
+createServer({ ipcMain }).start();
 
-const server = createServer({ ipcMain });
-await server.start();
+// renderer - just use <AgentPulseProvider> without endpoint
 ```
 
-```tsx
-// renderer.tsx - zero config, auto-detects IPC
-import { AgentPulseProvider } from 'agentpulse';
+## Links
 
-<AgentPulseProvider>
-  <App />
-</AgentPulseProvider>
-```
-
-The provider auto-detects `window.agentpulse` (set up by preload) and uses IPC transport automatically.
-
-## MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `discover` | List components with current state and descriptions |
-| `expose_list` | List component IDs and keys |
-| `expose_get` | Get a value |
-| `expose_set` | Set a value |
-| `expose_call` | Call an action |
-| `interact` | Batch multiple operations |
-
-## CLI
-
-```bash
-npx agentpulse [options]
-
-Options:
-  --port, -p    Port to listen on (default: 3100)
-  --host, -h    Host to bind to (default: localhost)
-```
-
-## Why AgentPulse?
-
-| Without AgentPulse | With AgentPulse |
-|-------------------|-----------------|
-| Write custom automation endpoints | One hook per component |
-| Build test harnesses | MCP client connects directly |
-| Manual state inspection | `discover()` shows everything |
-
-## Related
-
-- **[use-mcp](https://github.com/anthropics/use-mcp)**: React app calls MCP tools (App → Server)
-- **AgentPulse**: MCP clients control React app (Server ← App)
-
-They're complementary! Use both if your app needs to call AI tools AND be controllable.
+- [Examples](./examples)
+- [API Reference](./docs/api.md)
+- [Electron Guide](./docs/electron.md)
 
 ## License
 
