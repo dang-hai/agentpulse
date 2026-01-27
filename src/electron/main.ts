@@ -64,6 +64,14 @@ interface RendererConnection {
   components: Map<string, { keys: string[]; description?: string; tags?: string[] }>;
 }
 
+/** Custom tool registration */
+export interface CustomTool {
+  name: string;
+  description: string;
+  inputSchema: z.ZodType;
+  handler: (args: unknown, server: ElectronServer) => Promise<unknown>;
+}
+
 /**
  * AgentPulse Electron MCP Server
  *
@@ -80,6 +88,7 @@ export class ElectronServer {
       reject: (error: Error) => void;
     }
   >();
+  private customTools: CustomTool[] = [];
   private options: Required<Omit<ElectronServerOptions, 'ipcMain'>> & { ipcMain: IpcMain };
 
   constructor(options: ElectronServerOptions) {
@@ -169,6 +178,26 @@ export class ElectronServer {
     });
   }
 
+  /**
+   * Register a custom tool on the MCP server.
+   * Must be called before start().
+   *
+   * @example
+   * server.registerTool({
+   *   name: 'ui_click',
+   *   description: 'Click an element',
+   *   inputSchema: z.object({ selector: z.string() }),
+   *   handler: async (args) => {
+   *     // Handle the click
+   *     return { success: true };
+   *   },
+   * });
+   */
+  registerTool(tool: CustomTool): this {
+    this.customTools.push(tool);
+    return this;
+  }
+
   private createMcpServer(): McpServer {
     const server = new McpServer({
       name: this.options.name,
@@ -176,8 +205,41 @@ export class ElectronServer {
     });
 
     this.registerTools(server);
+    this.registerCustomTools(server);
 
     return server;
+  }
+
+  private registerCustomTools(server: McpServer): void {
+    for (const tool of this.customTools) {
+      server.registerTool(
+        tool.name,
+        {
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+        },
+        async (args) => {
+          try {
+            const result = await tool.handler(args, this);
+            return {
+              content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+            };
+          } catch (error) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    error: error instanceof Error ? error.message : String(error),
+                  }),
+                },
+              ],
+              isError: true,
+            };
+          }
+        }
+      );
+    }
   }
 
   private registerTools(server: McpServer): void {
@@ -461,6 +523,44 @@ export class ElectronServer {
 
   get connectionCount(): number {
     return this.connections.size;
+  }
+
+  /**
+   * Invoke a method on the renderer via IPC.
+   * Used by custom tools to communicate with renderer-side handlers.
+   *
+   * @param channel - The channel name (will be prefixed with base channel)
+   * @param payload - Data to send to the renderer
+   * @returns Promise that resolves with the renderer's response
+   */
+  async invokeRenderer<T = unknown>(channel: string, payload?: unknown): Promise<T> {
+    const connection = this.connections.values().next().value as RendererConnection | undefined;
+
+    if (!connection) {
+      throw new Error('No renderer connected');
+    }
+
+    const id = crypto.randomUUID();
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error('Request timeout'));
+      }, 30000);
+
+      this.pending.set(id, {
+        resolve: (result) => {
+          clearTimeout(timeout);
+          resolve(result as T);
+        },
+        reject: (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        },
+      });
+
+      connection.webContents.send(`${this.options.channel}:custom:${channel}`, { id, payload });
+    });
   }
 }
 
