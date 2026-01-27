@@ -28,6 +28,18 @@ export type {
   Transport,
 } from './protocol.js';
 export { ExposeRegistry, getRegistry, resetRegistry } from './registry.js';
+export type {
+  CallInput,
+  DiscoverInput,
+  GetInput,
+  InteractInput,
+  ListInput,
+  SetInput,
+  ToolDefinition,
+  ToolName,
+} from './tools.js';
+// Tool definitions
+export { allTools, toolDefinitions } from './tools.js';
 
 // Types
 export type {

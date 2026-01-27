@@ -15,9 +15,11 @@
 import * as http from 'node:http';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { z } from 'zod';
+import type { z } from 'zod';
 import { isRequest, isResponse } from '../core/parse.js';
 import type { ProcedureName, Procedures, Request } from '../core/protocol.js';
+import type { InteractAction } from '../core/tools.js';
+import { toolDefinitions } from '../core/tools.js';
 
 // Electron types (peer dependency)
 interface WebContents {
@@ -243,14 +245,12 @@ export class ElectronServer {
   }
 
   private registerTools(server: McpServer): void {
+    // expose_list
     server.registerTool(
-      'expose_list',
+      toolDefinitions.expose_list.name,
       {
-        description:
-          'List all exposed components. Use this first to discover what can be controlled.',
-        inputSchema: z.object({
-          tag: z.string().optional().describe('Filter by tag'),
-        }),
+        description: toolDefinitions.expose_list.description,
+        inputSchema: toolDefinitions.expose_list.inputSchema,
       },
       async (args) => {
         const result = await this.proxyRequest('list', args as Procedures['list']['input']);
@@ -258,14 +258,12 @@ export class ElectronServer {
       }
     );
 
+    // expose_get
     server.registerTool(
-      'expose_get',
+      toolDefinitions.expose_get.name,
       {
-        description: 'Get a value from an exposed component.',
-        inputSchema: z.object({
-          id: z.string().describe('Component ID (e.g., "chat-input")'),
-          key: z.string().describe('Key to get (e.g., "value", "isLoading")'),
-        }),
+        description: toolDefinitions.expose_get.description,
+        inputSchema: toolDefinitions.expose_get.inputSchema,
       },
       async (args) => {
         const result = await this.proxyRequest('get', args as Procedures['get']['input']);
@@ -273,15 +271,12 @@ export class ElectronServer {
       }
     );
 
+    // expose_set
     server.registerTool(
-      'expose_set',
+      toolDefinitions.expose_set.name,
       {
-        description: 'Set a value on an exposed component.',
-        inputSchema: z.object({
-          id: z.string().describe('Component ID'),
-          key: z.string().describe('Key to set (must be a setter or accessor)'),
-          value: z.unknown().describe('Value to set'),
-        }),
+        description: toolDefinitions.expose_set.description,
+        inputSchema: toolDefinitions.expose_set.inputSchema,
       },
       async (args) => {
         const result = await this.proxyRequest('set', args as Procedures['set']['input']);
@@ -289,15 +284,12 @@ export class ElectronServer {
       }
     );
 
+    // expose_call
     server.registerTool(
-      'expose_call',
+      toolDefinitions.expose_call.name,
       {
-        description: 'Call an action on an exposed component.',
-        inputSchema: z.object({
-          id: z.string().describe('Component ID'),
-          key: z.string().describe('Action to call (e.g., "send", "clear")'),
-          args: z.array(z.unknown()).optional().describe('Arguments to pass'),
-        }),
+        description: toolDefinitions.expose_call.description,
+        inputSchema: toolDefinitions.expose_call.inputSchema,
       },
       async (args) => {
         const input = args as { id: string; key: string; args?: unknown[] };
@@ -310,16 +302,12 @@ export class ElectronServer {
       }
     );
 
+    // discover
     server.registerTool(
-      'discover',
+      toolDefinitions.discover.name,
       {
-        description:
-          'Discover components with rich info including current state and description. ' +
-          'Use this instead of expose_list when you want to understand and act quickly.',
-        inputSchema: z.object({
-          tag: z.string().optional().describe('Filter by tag'),
-          id: z.string().optional().describe('Filter to specific component ID'),
-        }),
+        description: toolDefinitions.discover.description,
+        inputSchema: toolDefinitions.discover.inputSchema,
       },
       async (args) => {
         const result = await this.proxyRequest('discover', args as Procedures['discover']['input']);
@@ -327,34 +315,17 @@ export class ElectronServer {
       }
     );
 
+    // interact - executes batch operations via proxy
     server.registerTool(
-      'interact',
+      toolDefinitions.interact.name,
       {
-        description:
-          'Execute multiple actions on a component. ' +
-          'Bundles set/call actions in a single call to reduce round trips.',
-        inputSchema: z.object({
-          target: z.string().describe('Component ID to interact with'),
-          actions: z
-            .array(
-              z.union([
-                z.object({ set: z.record(z.unknown()).describe('Key-value pairs to set') }),
-                z.object({
-                  call: z.string().describe('Action name to call'),
-                  args: z.array(z.unknown()).optional().describe('Arguments for the action'),
-                }),
-              ])
-            )
-            .describe('Actions to execute in sequence'),
-        }),
+        description: toolDefinitions.interact.description,
+        inputSchema: toolDefinitions.interact.inputSchema,
       },
       async (args) => {
-        const { target, actions } = args as {
-          target: string;
-          actions: Array<{ set?: Record<string, unknown> } | { call: string; args?: unknown[] }>;
-        };
+        const { target, actions } = args as { target: string; actions: InteractAction[] };
 
-        const results: Array<{ success: boolean; error?: string; result?: unknown }> = [];
+        const results: Array<{ success: boolean; error?: string; value?: unknown }> = [];
 
         for (const action of actions) {
           if ('set' in action && action.set) {
