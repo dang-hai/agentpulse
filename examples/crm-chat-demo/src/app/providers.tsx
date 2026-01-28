@@ -1,6 +1,7 @@
 'use client';
 
 import { AgentPulseProvider } from 'agentpulse';
+import { FloatingPill } from '@/components/FloatingPill';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -11,6 +12,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       onError={(err) => console.error('[AgentPulse] Connection error:', err)}
     >
       {children}
+      <FloatingPill />
     </AgentPulseProvider>
   );
 }
