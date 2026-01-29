@@ -1,25 +1,25 @@
-export { VisualOverlay } from './VisualOverlay.js';
-export { interactionEmitter } from './events.js';
-export { getElementByComponentId, getComponentPosition, DATA_ATTR } from './element-tracker.js';
 export {
-  createTargetResolver,
-  setAnimationConfig,
-  getTargetResolver,
-  clearAnimationConfig,
-  type SelectorConfig,
-} from './target-resolver.js';
-export {
-  createAnimationHooks,
-  setAnimationController,
-  getAnimationController,
   type AnimationController,
+  createAnimationHooks,
+  getAnimationController,
+  setAnimationController,
 } from './animation-hooks.js';
+export { DATA_ATTR, getComponentPosition, getElementByComponentId } from './element-tracker.js';
+export { interactionEmitter } from './events.js';
+export {
+  clearAnimationConfig,
+  createTargetResolver,
+  getTargetResolver,
+  type SelectorConfig,
+  setAnimationConfig,
+} from './target-resolver.js';
 export type {
+  AnimationTargetConfig,
+  ElementPosition,
+  InteractionEndEvent,
   InteractionEvent,
   InteractionStartEvent,
-  InteractionEndEvent,
-  VisualConfig,
   InteractionType,
-  ElementPosition,
-  AnimationTargetConfig,
+  VisualConfig,
 } from './types.js';
+export { VisualOverlay } from './VisualOverlay.js';

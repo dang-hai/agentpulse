@@ -36,7 +36,10 @@ export function getComponentPosition(componentId: string, key?: string): Element
   return getElementPosition(element);
 }
 
-export function getInputElement(componentId: string, key?: string): HTMLInputElement | HTMLTextAreaElement | null {
+export function getInputElement(
+  componentId: string,
+  key?: string
+): HTMLInputElement | HTMLTextAreaElement | null {
   const container = getElementByComponentId(componentId, key);
   if (!container) return null;
 

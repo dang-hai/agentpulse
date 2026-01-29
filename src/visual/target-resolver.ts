@@ -31,7 +31,9 @@ export function createTargetResolver(config: SelectorConfig = {}): TargetResolve
     if (selector) {
       const element = document.querySelector(selector);
       if (element) {
-        console.log(`[TargetResolver] Found element for ${componentId}.${key} using selector: ${selector}`);
+        console.log(
+          `[TargetResolver] Found element for ${componentId}.${key} using selector: ${selector}`
+        );
         return element as HTMLElement;
       }
       console.log(`[TargetResolver] Selector not found for ${componentId}.${key}: ${selector}`);
@@ -53,12 +55,11 @@ export function createTargetResolver(config: SelectorConfig = {}): TargetResolve
 
     // Check if element is in viewport
     const rect = element.getBoundingClientRect();
-    const inViewport = (
+    const inViewport =
       rect.top >= 0 &&
       rect.left >= 0 &&
       rect.bottom <= window.innerHeight &&
-      rect.right <= window.innerWidth
-    );
+      rect.right <= window.innerWidth;
 
     // Scroll into view if outside viewport
     if (!inViewport) {
@@ -81,7 +82,10 @@ export function createTargetResolver(config: SelectorConfig = {}): TargetResolve
     };
   }
 
-  function getInputElement(componentId: string, key: string): HTMLInputElement | HTMLTextAreaElement | null {
+  function getInputElement(
+    componentId: string,
+    key: string
+  ): HTMLInputElement | HTMLTextAreaElement | null {
     const element = resolve(componentId, key);
     if (!element) return null;
 
@@ -104,22 +108,30 @@ function autoDiscover(componentId: string, key: string): HTMLElement | null {
   const normalizedKey = key.replace(/^set/, '').toLowerCase();
 
   // Strategy 1: data-agentpulse-id (backward compat)
-  const byDataAttr = document.querySelector(`[data-agentpulse-id="${componentId}-${normalizedKey}"]`);
+  const byDataAttr = document.querySelector(
+    `[data-agentpulse-id="${componentId}-${normalizedKey}"]`
+  );
   if (byDataAttr) return byDataAttr as HTMLElement;
 
   // Strategy 2: Form with matching data attribute, find input by name
   const formByAttr = document.querySelector(`[data-agentpulse-id="${componentId}"]`);
   if (formByAttr) {
-    const inputInForm = formByAttr.querySelector(`[name="${normalizedKey}"], input[placeholder*="${normalizedKey}" i]`);
+    const inputInForm = formByAttr.querySelector(
+      `[name="${normalizedKey}"], input[placeholder*="${normalizedKey}" i]`
+    );
     if (inputInForm) return inputInForm as HTMLElement;
   }
 
   // Strategy 3: input/textarea with name attribute
-  const byName = document.querySelector(`input[name="${normalizedKey}"], textarea[name="${normalizedKey}"]`);
+  const byName = document.querySelector(
+    `input[name="${normalizedKey}"], textarea[name="${normalizedKey}"]`
+  );
   if (byName) return byName as HTMLElement;
 
   // Strategy 4: input/textarea with id
-  const byId = document.getElementById(normalizedKey) || document.getElementById(`${componentId}-${normalizedKey}`);
+  const byId =
+    document.getElementById(normalizedKey) ||
+    document.getElementById(`${componentId}-${normalizedKey}`);
   if (byId) return byId;
 
   // Strategy 5: input with placeholder containing key
@@ -132,15 +144,18 @@ function autoDiscover(componentId: string, key: string): HTMLElement | null {
 
   // Strategy 7: For actions like submitForm, find submit button
   if (key.toLowerCase().includes('submit')) {
-    const submitBtn = document.querySelector(`[data-agentpulse-id="${componentId}"] button[type="submit"]`) ||
-                      document.querySelector(`form button[type="submit"]`) ||
-                      document.querySelector('button[type="submit"]');
+    const submitBtn =
+      document.querySelector(`[data-agentpulse-id="${componentId}"] button[type="submit"]`) ||
+      document.querySelector(`form button[type="submit"]`) ||
+      document.querySelector('button[type="submit"]');
     if (submitBtn) return submitBtn as HTMLElement;
   }
 
   // Strategy 8: For actions like openForm/closeForm, find related button
   if (key.toLowerCase().includes('open') || key.toLowerCase().includes('close')) {
-    const actionBtn = document.querySelector(`button:contains("${key.includes('open') ? 'Add' : 'Cancel'}")`);
+    const actionBtn = document.querySelector(
+      `button:contains("${key.includes('open') ? 'Add' : 'Cancel'}")`
+    );
     if (actionBtn) return actionBtn as HTMLElement;
   }
 
