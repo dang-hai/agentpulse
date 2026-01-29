@@ -49,7 +49,7 @@ export type {
   Response,
   Transport,
 } from './core/protocol.js';
-export { getRegistry, resetRegistry } from './core/registry.js';
+export { getRegistry, resetRegistry, type AnimationHooks } from './core/registry.js';
 // Types
 export type {
   Bindings,
@@ -73,3 +73,12 @@ export { AgentPulseProvider, useAgentPulse } from './react/provider.js';
 export type { WebSocketTransportOptions } from './transport/websocket.js';
 // Transport
 export { WebSocketTransport } from './transport/websocket.js';
+// Visual feedback
+export {
+  VisualOverlay,
+  interactionEmitter,
+  DATA_ATTR,
+  setAnimationConfig,
+  clearAnimationConfig,
+} from './visual/index.js';
+export type { VisualConfig, InteractionEvent, SelectorConfig } from './visual/index.js';

@@ -147,6 +147,7 @@ export function DealsPanel({
           <div className="form-group">
             <label>Deal Title *</label>
             <input
+              data-agentpulse-id="deal-form-title"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="Enterprise License"
@@ -157,6 +158,7 @@ export function DealsPanel({
           <div className="form-group">
             <label>Value ($)</label>
             <input
+              data-agentpulse-id="deal-form-value"
               type="number"
               value={formData.value}
               onChange={(e) => setFormData({ ...formData, value: e.target.value })}
@@ -167,6 +169,7 @@ export function DealsPanel({
           <div className="form-group">
             <label>Contact *</label>
             <select
+              data-agentpulse-id="deal-form-contactid"
               value={formData.contactId}
               onChange={(e) => setFormData({ ...formData, contactId: e.target.value })}
               required
@@ -181,6 +184,7 @@ export function DealsPanel({
           <div className="form-group">
             <label>Stage</label>
             <select
+              data-agentpulse-id="deal-form-stage"
               value={formData.stage}
               onChange={(e) => setFormData({ ...formData, stage: e.target.value as DealStage })}
               style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
@@ -190,7 +194,7 @@ export function DealsPanel({
               ))}
             </select>
           </div>
-          <button type="submit" className="primary">Add Deal</button>
+          <button data-agentpulse-id="deal-form-submitform" type="submit" className="primary">Add Deal</button>
         </form>
       )}
 

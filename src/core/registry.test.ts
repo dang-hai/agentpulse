@@ -66,7 +66,7 @@ describe('ExposeRegistry', () => {
       }
     });
 
-    it('set works with accessor pattern', () => {
+    it('set works with accessor pattern', async () => {
       let value = 'initial';
       const registry = getRegistry();
       registry.register('comp', {
@@ -78,11 +78,11 @@ describe('ExposeRegistry', () => {
         },
       });
 
-      registry.set('comp', 'text', 'updated');
+      await registry.set('comp', 'text', 'updated');
       expect(value).toBe('updated');
     });
 
-    it('set works with setXxx convention', () => {
+    it('set works with setXxx convention', async () => {
       let value = 0;
       const registry = getRegistry();
       registry.register('comp', {
@@ -91,7 +91,7 @@ describe('ExposeRegistry', () => {
         },
       });
 
-      registry.set('comp', 'setCount', 99);
+      await registry.set('comp', 'setCount', 99);
       expect(value).toBe(99);
     });
 

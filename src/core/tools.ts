@@ -122,7 +122,7 @@ async function executeInteract(
   for (const action of actions) {
     if ('set' in action && action.set) {
       for (const [key, value] of Object.entries(action.set)) {
-        const result = registry.set(target, key, value);
+        const result = await registry.set(target, key, value);
         results.push(result);
       }
     } else if ('call' in action) {
@@ -160,9 +160,9 @@ export const toolDefinitions = {
     name: 'expose_set',
     description: 'Set a value on an exposed component.',
     inputSchema: setSchema,
-    execute: (registry: ExposeRegistry, input: SetInput) =>
+    execute: async (registry: ExposeRegistry, input: SetInput) =>
       registry.set(input.id, input.key, input.value),
-  } satisfies ToolDefinition<SetInput, SetResult>,
+  } satisfies ToolDefinition<SetInput, Promise<SetResult>>,
 
   expose_call: {
     name: 'expose_call',

@@ -1,6 +1,7 @@
 'use client';
 
-import { AgentPulseProvider } from 'agentpulse';
+import { AgentPulseProvider, VisualOverlay } from 'agentpulse';
+import { animationTargets } from '@/animation.config';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -11,6 +12,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       onError={(err) => console.error('[AgentPulse] Connection error:', err)}
     >
       {children}
+      <VisualOverlay targets={animationTargets} />
     </AgentPulseProvider>
   );
 }

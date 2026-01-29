@@ -171,7 +171,7 @@ export async function interact(
   for (const action of actions) {
     if ('set' in action) {
       for (const [key, value] of Object.entries(action.set)) {
-        const result = registry.set(target, key, value);
+        const result = await registry.set(target, key, value);
         results.push(result);
         if (!result.success) {
           overallSuccess = false;

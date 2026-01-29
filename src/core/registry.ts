@@ -5,6 +5,8 @@
  * Components register their state and actions here, and MCP tools query it.
  */
 
+import { interactionEmitter } from '../visual/events.js';
+import type { InteractionType } from '../visual/types.js';
 import type {
   Bindings,
   BindingValue,
@@ -17,8 +19,96 @@ import type {
   SetResult,
 } from './types.js';
 
+/**
+ * Animation hooks for pre/post action execution.
+ * These allow the visual layer to animate BEFORE actions execute.
+ */
+export interface AnimationHooks {
+  /** Called before a set operation. Should animate cursor + typing, resolves when ready to execute. */
+  preSet?: (componentId: string, key: string, value: unknown) => Promise<void>;
+  /** Called after a set operation completes. */
+  postSet?: (componentId: string, key: string, success: boolean) => Promise<void>;
+  /** Called before a call operation. Should animate cursor + click, resolves when ready to execute. */
+  preCall?: (componentId: string, key: string, args: unknown[]) => Promise<void>;
+  /** Called after a call operation completes. */
+  postCall?: (componentId: string, key: string, success: boolean) => Promise<void>;
+}
+
+let interactionCounter = 0;
+function generateInteractionId(): string {
+  return `int_${Date.now()}_${++interactionCounter}`;
+}
+
 export class ExposeRegistry {
   private entries = new Map<string, ExposeEntry>();
+  private visualEnabled = true;
+  private visualDelay = 800; // ms to wait for cursor animation before executing
+  private animationHooks: AnimationHooks | null = null;
+
+  setVisualEnabled(enabled: boolean): void {
+    this.visualEnabled = enabled;
+  }
+
+  setVisualDelay(delay: number): void {
+    this.visualDelay = delay;
+  }
+
+  setAnimationHooks(hooks: AnimationHooks | null): void {
+    this.animationHooks = hooks;
+  }
+
+  getAnimationHooks(): AnimationHooks | null {
+    return this.animationHooks;
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private emitStart(
+    componentId: string,
+    key: string,
+    type: InteractionType,
+    value?: unknown,
+    args?: unknown[]
+  ) {
+    if (!this.visualEnabled) return null;
+    const id = generateInteractionId();
+    interactionEmitter.emit({
+      type: 'interaction-start',
+      id,
+      componentId,
+      key,
+      interactionType: type,
+      value,
+      args,
+      timestamp: Date.now(),
+    });
+    return id;
+  }
+
+  private emitEnd(
+    id: string | null,
+    componentId: string,
+    key: string,
+    type: InteractionType,
+    success: boolean,
+    startTime: number,
+    error?: string
+  ) {
+    if (!this.visualEnabled || !id) return;
+    interactionEmitter.emit({
+      type: 'interaction-end',
+      id,
+      componentId,
+      key,
+      interactionType: type,
+      success,
+      error,
+      duration: Date.now() - startTime,
+      timestamp: Date.now(),
+    });
+  }
 
   /**
    * Register bindings for a component.
@@ -149,37 +239,60 @@ export class ExposeRegistry {
   /**
    * Set a value on an exposed binding
    */
-  set(id: string, key: string, value: unknown): SetResult {
+  async set(id: string, key: string, value: unknown): Promise<SetResult> {
+    const startTime = Date.now();
+    const interactionId = this.emitStart(id, key, 'set', value);
+
     const entry = this.entries.get(id);
     if (!entry) {
-      return { success: false, error: `Component not found: ${id}` };
+      const error = `Component not found: ${id}`;
+      this.emitEnd(interactionId, id, key, 'set', false, startTime, error);
+      return { success: false, error };
     }
 
     const binding = entry.bindings[key];
     if (binding === undefined) {
-      return {
-        success: false,
-        error: `Key not found: ${key}. Available: ${Object.keys(entry.bindings).join(', ')}`,
-      };
+      const error = `Key not found: ${key}. Available: ${Object.keys(entry.bindings).join(', ')}`;
+      this.emitEnd(interactionId, id, key, 'set', false, startTime, error);
+      return { success: false, error };
+    }
+
+    // Pre-hook: animate cursor to element, start typing animation
+    if (this.animationHooks?.preSet) {
+      await this.animationHooks.preSet(id, key, value);
     }
 
     try {
       if (this.isAccessor(binding)) {
         binding.set(value);
+        this.emitEnd(interactionId, id, key, 'set', true, startTime);
+        if (this.animationHooks?.postSet) {
+          await this.animationHooks.postSet(id, key, true);
+        }
         return { success: true, value: undefined };
       }
 
       // Convention: setXxx functions are setters
       if (typeof binding === 'function' && /^set[A-Z]/.test(key)) {
         binding(value);
+        this.emitEnd(interactionId, id, key, 'set', true, startTime);
+        if (this.animationHooks?.postSet) {
+          await this.animationHooks.postSet(id, key, true);
+        }
         return { success: true, value: undefined };
       }
 
-      return {
-        success: false,
-        error: `Key "${key}" is not settable. Use an accessor or setXxx function.`,
-      };
+      const error = `Key "${key}" is not settable. Use an accessor or setXxx function.`;
+      this.emitEnd(interactionId, id, key, 'set', false, startTime, error);
+      if (this.animationHooks?.postSet) {
+        await this.animationHooks.postSet(id, key, false);
+      }
+      return { success: false, error };
     } catch (err) {
+      this.emitEnd(interactionId, id, key, 'set', false, startTime, String(err));
+      if (this.animationHooks?.postSet) {
+        await this.animationHooks.postSet(id, key, false);
+      }
       return { success: false, error: String(err) };
     }
   }
@@ -188,30 +301,55 @@ export class ExposeRegistry {
    * Call an exposed action
    */
   async call(id: string, key: string, args: unknown[] = []): Promise<CallResult> {
+    const startTime = Date.now();
+    const interactionId = this.emitStart(id, key, 'call', undefined, args);
+
     const entry = this.entries.get(id);
     if (!entry) {
-      return { success: false, error: `Component not found: ${id}` };
+      const error = `Component not found: ${id}`;
+      this.emitEnd(interactionId, id, key, 'call', false, startTime, error);
+      return { success: false, error };
     }
 
     const binding = entry.bindings[key];
     if (binding === undefined) {
-      return {
-        success: false,
-        error: `Key not found: ${key}. Available: ${Object.keys(entry.bindings).join(', ')}`,
-      };
+      const error = `Key not found: ${key}. Available: ${Object.keys(entry.bindings).join(', ')}`;
+      this.emitEnd(interactionId, id, key, 'call', false, startTime, error);
+      return { success: false, error };
     }
 
     if (typeof binding !== 'function') {
-      return {
-        success: false,
-        error: `Key "${key}" is not callable. It's a ${typeof binding}.`,
-      };
+      const error = `Key "${key}" is not callable. It's a ${typeof binding}.`;
+      this.emitEnd(interactionId, id, key, 'call', false, startTime, error);
+      return { success: false, error };
+    }
+
+    // Pre-hook: animate cursor to element, show click animation
+    if (this.animationHooks?.preCall) {
+      await this.animationHooks.preCall(id, key, args);
+    } else if (this.visualEnabled && this.visualDelay > 0) {
+      // Fallback to simple delay if no hooks
+      await this.delay(this.visualDelay);
     }
 
     try {
       const value = await binding(...args);
+      this.emitEnd(interactionId, id, key, 'call', true, startTime);
+
+      // Post-hook: show success feedback
+      if (this.animationHooks?.postCall) {
+        await this.animationHooks.postCall(id, key, true);
+      }
+
       return { success: true, value };
     } catch (err) {
+      this.emitEnd(interactionId, id, key, 'call', false, startTime, String(err));
+
+      // Post-hook: show error feedback
+      if (this.animationHooks?.postCall) {
+        await this.animationHooks.postCall(id, key, false);
+      }
+
       return { success: false, error: String(err) };
     }
   }

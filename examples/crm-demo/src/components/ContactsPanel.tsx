@@ -111,6 +111,7 @@ export function ContactsPanel({ contacts, onAdd, onUpdate, onDelete }: ContactsP
           <div className="form-group">
             <label>Name *</label>
             <input
+              data-agentpulse-id="contact-form-name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="John Doe"
@@ -121,6 +122,7 @@ export function ContactsPanel({ contacts, onAdd, onUpdate, onDelete }: ContactsP
           <div className="form-group">
             <label>Email</label>
             <input
+              data-agentpulse-id="contact-form-email"
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -131,6 +133,7 @@ export function ContactsPanel({ contacts, onAdd, onUpdate, onDelete }: ContactsP
           <div className="form-group">
             <label>Phone</label>
             <input
+              data-agentpulse-id="contact-form-phone"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               placeholder="555-0100"
@@ -140,13 +143,14 @@ export function ContactsPanel({ contacts, onAdd, onUpdate, onDelete }: ContactsP
           <div className="form-group">
             <label>Company</label>
             <input
+              data-agentpulse-id="contact-form-company"
               value={formData.company}
               onChange={(e) => setFormData({ ...formData, company: e.target.value })}
               placeholder="Acme Corp"
               className={formData.company ? 'ai-active' : ''}
             />
           </div>
-          <button type="submit" className="primary">Add Contact</button>
+          <button data-agentpulse-id="contact-form-submitform" type="submit" className="primary">Add Contact</button>
         </form>
       )}
 

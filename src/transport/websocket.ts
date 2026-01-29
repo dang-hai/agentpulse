@@ -187,7 +187,7 @@ export class WebSocketTransport implements Transport {
         }
         case 'set': {
           const p = req.params as Procedures['set']['input'];
-          result = registry.set(p.id, p.key, p.value);
+          result = await registry.set(p.id, p.key, p.value);
           break;
         }
         case 'call': {
