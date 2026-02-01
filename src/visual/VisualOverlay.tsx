@@ -293,6 +293,31 @@ export function VisualOverlay(props: VisualOverlayProps = {}) {
   // Promise resolver for hook-based cursor animations
   const cursorArriveResolverRef = useRef<(() => void) | null>(null);
 
+  const addRipple = useCallback((x: number, y: number) => {
+    const id = `ripple_${Date.now()}`;
+    setRipples((prev) => [...prev, { id, x, y }]);
+    setTimeout(() => {
+      setRipples((prev) => prev.filter((r) => r.id !== id));
+    }, 600);
+  }, []);
+
+  const startTyping = useCallback((componentId: string, key: string, targetValue: string) => {
+    const resolver = getTargetResolver();
+    const inputElement = resolver.getInputElement(componentId, key);
+    if (!inputElement) return;
+
+    const nativeInputValueSetter =
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set ||
+      Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+
+    if (nativeInputValueSetter) {
+      nativeInputValueSetter.call(inputElement, '');
+      inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    setTyping({ componentId, key, targetValue, currentIndex: 0, inputElement });
+  }, []);
+
   // Continuous interpolation animation loop
   const startAnimationLoop = useCallback(() => {
     if (isAnimatingRef.current) return;
@@ -350,7 +375,6 @@ export function VisualOverlay(props: VisualOverlayProps = {}) {
     }
 
     animationFrameRef.current = requestAnimationFrame(tick);
-    // biome-ignore lint/correctness/noInvalidUseBeforeDeclaration: functions available at callback execution time
   }, [config.clickRipple, addRipple, startTyping]);
 
   // Move cursor to target position
@@ -365,14 +389,6 @@ export function VisualOverlay(props: VisualOverlayProps = {}) {
     },
     [startAnimationLoop]
   );
-
-  const addRipple = useCallback((x: number, y: number) => {
-    const id = `ripple_${Date.now()}`;
-    setRipples((prev) => [...prev, { id, x, y }]);
-    setTimeout(() => {
-      setRipples((prev) => prev.filter((r) => r.id !== id));
-    }, 600);
-  }, []);
 
   // Schedule hiding cursor after inactivity
   const scheduleHideCursor = useCallback(
@@ -399,24 +415,6 @@ export function VisualOverlay(props: VisualOverlayProps = {}) {
     setCursorDisplay({ ...cursorRef.current });
     scheduleHideCursor(3000); // Hide after 3s of inactivity
   }, [scheduleHideCursor]);
-
-  const startTyping = useCallback((componentId: string, key: string, targetValue: string) => {
-    const resolver = getTargetResolver();
-    const inputElement = resolver.getInputElement(componentId, key);
-    if (!inputElement) return;
-
-    // Clear the input and type from scratch
-    const nativeInputValueSetter =
-      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set ||
-      Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-
-    if (nativeInputValueSetter) {
-      nativeInputValueSetter.call(inputElement, '');
-      inputElement.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    setTyping({ componentId, key, targetValue, currentIndex: 0, inputElement });
-  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
