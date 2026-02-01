@@ -15,7 +15,7 @@
  * }
  */
 
-import React, { type JSX, type ReactNode, useEffect, useMemo, useState } from 'react';
+import React, { type JSX, type ReactNode, useEffect, useRef, useState } from 'react';
 import { AgentPulseContext } from '../core/context.js';
 import type { Transport } from '../core/protocol.js';
 import { createIPCTransport } from '../transport/ipc.js';
@@ -68,20 +68,22 @@ export function AgentPulseProvider({
 }: AgentPulseProviderProps): JSX.Element {
   const [, setIsConnected] = useState(false);
 
-  // Create transport (custom, WebSocket, or IPC auto-detect)
-  const transport = useMemo(() => {
+  // Use ref to persist transport across StrictMode remounts
+  const transportRef = useRef<Transport | null>(null);
+
+  // Create transport once (custom, WebSocket, or IPC auto-detect)
+  if (!transportRef.current) {
     if (customTransport) {
-      return customTransport;
+      transportRef.current = customTransport;
+    } else if (endpoint) {
+      transportRef.current = new WebSocketTransport({ url: endpoint });
+    } else if (typeof window !== 'undefined' && window.agentpulse) {
+      // Auto-detect Electron IPC bridge
+      transportRef.current = createIPCTransport();
     }
-    if (endpoint) {
-      return new WebSocketTransport({ url: endpoint });
-    }
-    // Auto-detect Electron IPC bridge (fail-fast if in Electron without bridge)
-    if (typeof window !== 'undefined' && window.agentpulse) {
-      return createIPCTransport();
-    }
-    return null;
-  }, [endpoint, customTransport]);
+  }
+
+  const transport = transportRef.current;
 
   // Help developers debug missing setup in Electron
   useEffect(() => {
@@ -99,32 +101,40 @@ export function AgentPulseProvider({
     }
   }, [transport, endpoint, customTransport]);
 
-  // Connect on mount, disconnect on unmount
+  // Track if we should disconnect (prevents StrictMode double-mount issues)
+  const shouldDisconnectRef = useRef(false);
+
+  // Connect on mount, disconnect only on true unmount
   useEffect(() => {
     if (!transport) return;
 
-    let mounted = true;
+    shouldDisconnectRef.current = false;
 
     transport
       .connect()
       .then(() => {
-        if (mounted) {
+        if (!shouldDisconnectRef.current) {
           setIsConnected(true);
           onConnect?.();
         }
       })
       .catch((error) => {
-        if (mounted) {
+        if (!shouldDisconnectRef.current) {
           onError?.(error);
         }
       });
 
     return () => {
-      mounted = false;
-      setIsConnected(false);
-      transport.disconnect().then(() => {
-        onDisconnect?.();
-      });
+      shouldDisconnectRef.current = true;
+      // Delay disconnect to survive StrictMode remount
+      setTimeout(() => {
+        if (shouldDisconnectRef.current) {
+          setIsConnected(false);
+          transport.disconnect().then(() => {
+            onDisconnect?.();
+          });
+        }
+      }, 100);
     };
   }, [transport, onConnect, onDisconnect, onError]);
 
