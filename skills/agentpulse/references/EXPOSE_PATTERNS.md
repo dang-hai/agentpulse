@@ -2,7 +2,100 @@
 
 This reference covers patterns for exposing common UI components to AI agents effectively.
 
-## Principle: Expose Intent, Not Implementation
+## Principle 1: Expose Workflows as Humans Experience Them
+
+AI agents should follow the same interaction paths as human users. If a human must:
+1. Click a button to open a modal
+2. Fill out the form inside
+3. Click submit
+
+Then the AI must do the same. **Never expose form fields without exposing the action to make them visible.**
+
+### Visibility-First Pattern
+
+```tsx
+// ❌ Bad: Form fields exposed but modal might be closed
+useExpose('user-form', { name, setName, email, setEmail, save });
+
+// ✅ Good: Visibility control comes first
+useExpose('user-form', {
+  // Visibility state and controls (expose these first)
+  isOpen,
+  open,           // AI must call this before filling fields
+  close,
+
+  // Form fields (only usable after open())
+  name, setName,
+  email, setEmail,
+
+  // Actions
+  save,
+  reset,
+}, {
+  description: 'User form in modal. Call open() first, fill fields, then save(). Call close() to dismiss.',
+});
+```
+
+### Sequential Disclosure Pattern
+
+For UIs with nested or progressive disclosure (accordions, tabs, wizards):
+
+```tsx
+useExpose('settings-panel', {
+  // Section visibility
+  sections: ['general', 'privacy', 'notifications'],
+  expandedSection,
+  expandSection,     // expandSection('privacy') to reveal privacy settings
+  collapseSection,
+
+  // General settings (visible when expandedSection === 'general')
+  theme, setTheme,
+  language, setLanguage,
+
+  // Privacy settings (visible when expandedSection === 'privacy')
+  shareAnalytics, setShareAnalytics,
+  publicProfile, setPublicProfile,
+
+  // Notification settings (visible when expandedSection === 'notifications')
+  emailNotifs, setEmailNotifs,
+  pushNotifs, setPushNotifs,
+}, {
+  description: 'Settings with collapsible sections. Call expandSection(name) to reveal a section before modifying its settings.',
+});
+```
+
+### Project Board Workflow
+
+```tsx
+useExpose('project-board', {
+  // Board state
+  columns: ['backlog', 'in-progress', 'review', 'done'],
+  tasks,
+
+  // Task visibility (some boards have collapsed columns or hidden details)
+  expandColumn,
+  collapseColumn,
+  openTaskDetail,    // Opens task detail panel/modal
+  closeTaskDetail,
+
+  // Task operations (some require task detail to be open)
+  moveTask,          // moveTask(taskId, toColumn)
+  updateTaskTitle,   // Might require openTaskDetail first
+  addComment,        // Requires openTaskDetail first
+  assignTask,
+
+  // Creation workflow
+  showNewTaskForm,
+  hideNewTaskForm,
+  createTask,
+}, {
+  description: 'Kanban board. moveTask(id, column) to move cards. For editing: openTaskDetail(id) first, then updateTaskTitle/addComment/assignTask, then closeTaskDetail().',
+});
+```
+
+---
+
+## Principle 2: Expose Intent, Not Implementation
 
 Expose **what the user can do**, not internal state management details.
 
@@ -388,6 +481,168 @@ function StoreConnector() {
 
   return null;
 }
+```
+
+---
+
+## Scrollable Containers
+
+Use `createScrollBindings` to add scroll control to any scrollable element:
+
+```tsx
+import { useExpose, createScrollBindings } from 'agentpulse';
+
+function ChatMessages({ messages }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useExpose('chat-messages', {
+    messages,
+    unreadCount: messages.filter(m => !m.read).length,
+    ...createScrollBindings(containerRef),
+  }, {
+    description: 'Chat messages. Read messages array. scrollToBottom() to see latest. scrollToTop() for history.',
+  });
+
+  return (
+    <div ref={containerRef} style={{ height: 400, overflow: 'auto' }}>
+      {messages.map(m => <Message key={m.id} message={m} />)}
+    </div>
+  );
+}
+```
+
+### Scroll Bindings API
+
+| Binding | Type | Description |
+|---------|------|-------------|
+| `scrollTop` | Accessor | Current scroll position (read/write) |
+| `scrollHeight` | Accessor | Total scrollable height (read-only) |
+| `clientHeight` | Accessor | Visible container height (read-only) |
+| `scrollToTop()` | Action | Scroll to top |
+| `scrollToBottom()` | Action | Scroll to bottom |
+| `scrollTo(pos)` | Action | Scroll to specific pixel position |
+| `scrollBy(delta)` | Action | Scroll by relative amount (+/- pixels) |
+
+### Options
+
+```tsx
+// Smooth scrolling (default)
+createScrollBindings(ref, { behavior: 'smooth' });
+
+// Instant scrolling
+createScrollBindings(ref, { behavior: 'auto' });
+```
+
+---
+
+## Multiple Component Instances
+
+When exposing components that render multiple times (list items, tabs, etc.):
+
+### Option 1: useExposeId Hook
+
+```tsx
+import { useExpose, useExposeId } from 'agentpulse';
+
+function FileItem({ file, onDelete }) {
+  const exposeId = useExposeId('file-item');
+
+  useExpose(exposeId, {
+    name: file.name,
+    size: file.size,
+    delete: () => onDelete(file.id),
+  }, {
+    description: `File: ${file.name}. Call delete() to remove.`,
+  });
+
+  return <div>{file.name}</div>;
+}
+```
+
+Generates: `file-item:r1a2b3` (React-generated unique suffix)
+
+### Option 2: Item ID in Expose ID
+
+```tsx
+function FileItem({ file, onDelete }) {
+  useExpose(`file-item:${file.id}`, {
+    name: file.name,
+    delete: () => onDelete(file.id),
+  });
+
+  return <div>{file.name}</div>;
+}
+```
+
+Generates: `file-item:abc123` (your item's actual ID)
+
+### Option 3: Parent Exposes Collection
+
+```tsx
+function FileList({ files, onDelete }) {
+  useExpose('file-list', {
+    files,
+    count: files.length,
+    deleteFile: (id: string) => onDelete(id),
+    getFile: (id: string) => files.find(f => f.id === id),
+  }, {
+    description: 'File list. Read files array. Use deleteFile(id) to remove. getFile(id) returns single file.',
+  });
+
+  return <ul>{files.map(f => <li key={f.id}>{f.name}</li>)}</ul>;
+}
+```
+
+**Recommendation:** Option 3 (parent collection) is usually simpler for AI agents. Use individual item exposure only when items have complex independent state.
+
+---
+
+## Non-React Exposure
+
+For exposing state outside React components:
+
+### Services / Singletons
+
+```tsx
+import { expose } from 'agentpulse';
+
+class AuthService {
+  private user: User | null = null;
+  private unregister: (() => void) | null = null;
+
+  init() {
+    this.unregister = expose('auth', {
+      isLoggedIn: { get: () => !!this.user, set: () => {} },
+      username: { get: () => this.user?.name, set: () => {} },
+      logout: () => this.logout(),
+    }, {
+      description: 'Auth state. Check isLoggedIn, read username. Call logout() to sign out.',
+    });
+  }
+
+  destroy() {
+    this.unregister?.();
+  }
+}
+```
+
+### Module-level State
+
+```tsx
+import { expose } from 'agentpulse';
+
+let theme: 'light' | 'dark' = 'light';
+
+const unregister = expose('theme', {
+  current: { get: () => theme, set: () => {} },
+  toggle: () => { theme = theme === 'light' ? 'dark' : 'light'; },
+  setTheme: (t: 'light' | 'dark') => { theme = t; },
+}, {
+  description: 'App theme. Read current, use setTheme(value) or toggle().',
+});
+
+// Cleanup on app shutdown
+// unregister();
 ```
 
 ---
