@@ -2,6 +2,9 @@
   "name": "agentpulse-v2",
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "agentpulse-v2": "./src/server/cli.ts"
+  },
   "exports": {
     ".": "./dist/index.js",
     "./server": "./dist/server/index.js"
@@ -9,14 +12,26 @@
   "scripts": {
     "build": "bun build ./src/index.ts --outdir ./dist --target node",
     "dev": "bun --watch src/index.ts",
+    "dev:server": "bun run --watch src/server/cli.ts",
+    "start:server": "bun run src/server/cli.ts",
     "test": "bun test",
     "typecheck": "bun x tsc --noEmit"
   },
   "dependencies": {
-    "zod": "^3.23.0"
+    "@anthropic-ai/sdk": "^0.72.1",
+    "openai": "^6.17.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "zod": "^3.23.0",
+    "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^20.4.0",
+    "@testing-library/react": "^16.3.2",
     "@types/bun": "latest",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "happy-dom": "^20.4.0",
     "typescript": "^5.0.0"
   }
 }
