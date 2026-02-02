@@ -106,6 +106,7 @@ createServer({ ipcMain }).start();
 ## Links
 
 - [Examples](./examples)
+- [Visual Overlay Guide](./docs/visual-overlay.md)
 - [API Reference](./docs/api.md)
 - [Electron Guide](./docs/electron.md)
 
